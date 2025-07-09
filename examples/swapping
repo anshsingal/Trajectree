@@ -1,0 +1,62 @@
+from trajectree.fock_optics import *
+from trajectree.trajectory import *
+import time
+import numpy as np
+
+
+def generate_swapping_circuit(N, num_modes, site_tags, det_eff, channel_loss, error_tolerance):
+    quantum_channel_list = []
+
+    # Amplitude damping due to fibers
+    damping_kraus_ops = single_mode_bosonic_noise_channels(noise_parameter = channel_loss, N = N)
+    quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), damping_kraus_ops))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+    quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), damping_kraus_ops))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+
+    # Quantum channel for the Bell state measurement
+    BSM_MPOs = bell_state_measurement(None, N, site_tags, num_modes, det_eff, error_tolerance, pnr = False, return_MPOs = True, compress=True, contract=True)
+    BSM_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO) for BSM_MPO in BSM_MPOs]
+    quantum_channel_list.extend(BSM_quantum_channels)
+
+    return quantum_channel_list
+
+def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance):
+    # Create Vacuum state:
+    vacuum = create_vacuum_state(num_modes=num_modes, N=N)
+
+    # Entangled state from EPS
+    psi, TMSV_state = light_source(vacuum, N, mean_photon_num, num_modes, error_tolerance, compress=True, contract=True)
+    # trying new ls here:
+    # psi = new_ls(N, mean_photon_num, error_tolerance) 
+
+    # Include emission from other lightsource
+    psi = extend_MPS(psi)
+    return psi
+
+def perform_swapping_simulation(N, num_modes, mean_photon_num, det_eff, channel_loss, num_simulations, error_tolerance):
+
+    psi = create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance)
+
+    # read_quantum_state(psi, N = N, num_states=4)
+
+    quantum_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, det_eff, channel_loss, error_tolerance)
+
+    t_eval = trajectory_evaluator(quantum_channels)
+
+    times = []
+    expectations = []
+    start = time.time()
+
+    for i in range(num_simulations):        
+        psi_iter = t_eval.perform_simulation(psi, error_tolerance)
+        psi_iter.normalize()
+        
+        fidelity = np.abs(calc_fidelity_swapping(psi_iter, "psi_minus", N, error_tolerance))
+        # print("fidelity:", fidelity, "nodes:", t_eval.traversed_nodes)
+        expectations.append(fidelity)
+    
+    time_taken = time.time() - start
+    print("completed set", "cache_hits:", t_eval.cache_hit, "cache_partial_hits:", t_eval.cache_partial_hit, "cache_misses:", t_eval.cache_miss,  "time taken:", time_taken)
+    times.append(time_taken)
+
+    return expectations, t_eval
+

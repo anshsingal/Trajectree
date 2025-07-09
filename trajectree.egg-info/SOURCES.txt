@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+trajectree/__init__.py
+trajectree/first.py
+trajectree.egg-info/PKG-INFO
+trajectree.egg-info/SOURCES.txt
+trajectree.egg-info/dependency_links.txt
+trajectree.egg-info/top_level.txt

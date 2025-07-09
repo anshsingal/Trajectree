@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Trajectree"
+dynamic = ["version"]
+authors = [{ name="Ansh Singal", email="asingal@u.northwestern.edu" },]
+description = "Trajectree is a quantum trajectory theory and tensor network based quantum optics simulator."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+
+dependencies=[
+  'quimb',
+  'numpy',
+  'scipy',
+  'matplotlib',
+],
+
