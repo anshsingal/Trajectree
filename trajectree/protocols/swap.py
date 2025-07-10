@@ -1,7 +1,10 @@
-from trajectree.fock_optics import *
-from trajectree.trajectory import *
-import time
-import numpy as np
+from ..fock_optics.noise_models import *
+from ..fock_optics.measurement import *
+from ..fock_optics.utils import *
+from ..fock_optics.light_sources import *
+from ..trajectory import *
+
+import time 
 
 
 def generate_swapping_circuit(N, num_modes, site_tags, det_eff, channel_loss, error_tolerance):
@@ -9,8 +12,9 @@ def generate_swapping_circuit(N, num_modes, site_tags, det_eff, channel_loss, er
 
     # Amplitude damping due to fibers
     damping_kraus_ops = single_mode_bosonic_noise_channels(noise_parameter = channel_loss, N = N)
-    quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), damping_kraus_ops))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
-    quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), damping_kraus_ops))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+    two_mode_kraus_ops = [sp.kron(op, op) for op in damping_kraus_ops]
+    quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+    quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
 
     # Quantum channel for the Bell state measurement
     BSM_MPOs = bell_state_measurement(None, N, site_tags, num_modes, det_eff, error_tolerance, pnr = False, return_MPOs = True, compress=True, contract=True)
@@ -25,18 +29,13 @@ def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance
 
     # Entangled state from EPS
     psi, TMSV_state = light_source(vacuum, N, mean_photon_num, num_modes, error_tolerance, compress=True, contract=True)
-    # trying new ls here:
-    # psi = new_ls(N, mean_photon_num, error_tolerance) 
 
-    # Include emission from other lightsource
     psi = extend_MPS(psi)
     return psi
 
 def perform_swapping_simulation(N, num_modes, mean_photon_num, det_eff, channel_loss, num_simulations, error_tolerance):
 
     psi = create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance)
-
-    # read_quantum_state(psi, N = N, num_states=4)
 
     quantum_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, det_eff, channel_loss, error_tolerance)
 
@@ -51,7 +50,6 @@ def perform_swapping_simulation(N, num_modes, mean_photon_num, det_eff, channel_
         psi_iter.normalize()
         
         fidelity = np.abs(calc_fidelity_swapping(psi_iter, "psi_minus", N, error_tolerance))
-        # print("fidelity:", fidelity, "nodes:", t_eval.traversed_nodes)
         expectations.append(fidelity)
     
     time_taken = time.time() - start
