@@ -1,8 +1,8 @@
 Metadata-Version: 2.4
 Name: trajectree
 Version: 0.0.1
-Summary: A small example package
-Author-email: Example Author <author@example.com>
+Summary: Trajectree is a quantum trajectory theory and tensor network based quantum optics simulator.
+Author-email: Ansh Singal <asingal@u.northwestern.edu>
 License-Expression: MIT
 Classifier: Programming Language :: Python :: 3
 Classifier: Operating System :: OS Independent

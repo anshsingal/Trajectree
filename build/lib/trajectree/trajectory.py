@@ -5,9 +5,8 @@ from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignor
 
 
 class quantum_channel:
-    def __init__(self, N, num_modes, formalism, kraus_ops_tuple = None, unitary_MPOs = None, name = "quantum_channel"):
+    def __init__(self, N, num_modes, formalism, kraus_ops_tuple = None, unitary_MPOs = None):
         self.N = N
-        self.name = name
         self.num_modes = num_modes
         self.formalism = formalism
         if self.formalism == 'kraus':
@@ -84,8 +83,6 @@ class trajectory_evaluator():
     def cache_trajectree_node(self, trajectory_probs, trajectories):
         sorted_indices = np.argsort(trajectory_probs)
 
-        print("trajectory_probs", trajectory_probs)
-
         cached_trajectory_indices = sorted_indices[-self.cache_size:]
         cached_trajectories = np.array(trajectories)[cached_trajectory_indices]
 
@@ -161,6 +158,7 @@ class trajectory_evaluator():
             if quantum_channel.formalism == 'kraus':
                 trajectree_indices_list = [[*i, j] for i in trajectree_indices_list for j in range(len(quantum_channel.get_MPOs()))]
         for trajectree_indices in trajectree_indices_list:
+            print("querying nodes:", trajectree_indices)
             psi_new_dense = self.perform_simulation(psi, error_tolerance, cache = True, trajectree_indices = trajectree_indices, normalize = False).to_dense()
             dm += psi_new_dense @ psi_new_dense.conj().T
         return dm
@@ -195,8 +193,6 @@ class trajectory_evaluator():
                 if self.cache_unitary:
                     self.update_cached_node(unitary_MPOs, last_cached_node, error_tolerance)
 
-                # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
-                # node to update psi. If not, apply the unitary MPOs to psi.
                 traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])    
                 if traj_idx[0].size > 0:
                     psi = last_cached_node.trajectories[traj_idx[0][0]]
@@ -206,5 +202,4 @@ class trajectory_evaluator():
             else:
                 # print("unitary skipped:", self.traversed_nodes)
                 pass
-
         return psi
