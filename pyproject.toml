@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Trajectree"
-version = "0.0.1"
+version = "0.0.2"
 authors = [{ name="Ansh Singal", email="asingal@u.northwestern.edu" },]
 description = "Trajectree is a quantum trajectory theory and tensor network based quantum optics simulator."
 readme = "README.md"
