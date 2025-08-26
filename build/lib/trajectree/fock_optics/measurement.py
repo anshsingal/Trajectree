@@ -1,14 +1,17 @@
-from .devices import create_BS_MPO
+from .devices import generalized_mode_mixer, create_BS_MPO
+from ..trajectory import quantum_channel
+from .noise_models import single_mode_bosonic_noise_channels
 
 from scipy.linalg import sqrtm
+from scipy import sparse as sp
 
 import numpy as np
 from numpy.linalg import matrix_power
 from numpy import sqrt
 
-from quimb.tensor import MatrixProductOperator as mpo #type: ignore
-from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
-from quimb.tensor.tensor_1d_compress import enforce_1d_like #type: ignore
+from ..quimb.quimb.tensor import MatrixProductOperator as mpo #type: ignore
+from ..quimb.quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
+from ..quimb.quimb.tensor.tensor_1d_compress import enforce_1d_like #type: ignore
 
 import qutip as qt
 from math import factorial
@@ -87,7 +90,7 @@ def generate_sqrt_POVM_MPO(sites, outcome, total_sites, efficiency, N, pnr = Fal
     return sqrt_POVM_MPOs
 
 
-def bell_state_measurement(psi, N, site_tags, num_modes, efficiency, error_tolerance, beamsplitters = [[2,6],[3,7]], measurements = {1:(2,7), 0:(3,6)}, pnr = False, det_outcome = 1, return_MPOs = False, compress = True, contract = True):
+def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_counts_gain,  error_tolerance, beamsplitters = [[2,6],[3,7]], measurements = {0:(2,7), 1:(3,6)}, pnr = False, det_outcome = 1, use_trajectory = False, return_MPOs = False, compress = True, contract = True):
 
     """Perform Bell state measrement or return the MPOs used in the measurement.
     Args:
@@ -95,7 +98,7 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiency, error_toler
         N (int): local Hilbert space dimension
         site_tags (list): The tags for the sites in the MPS.
         num_modes (int): The number of modes in the MPS.
-        efficiency (float): The efficiency of the detectors.
+        efficiencies list[float]: The efficiencies of the (pairs of) detectors in the BSM.
         error_tolerance (float): The error tolerance for the tensor network.
         measurements (dict): The sites for the measurements. Default is {1:(2,7), 0:(3,6)}.
         pnr (bool): Whether to use photon number resolving measurement. Default is False.
@@ -117,13 +120,42 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiency, error_toler
     enforce_1d_like(U_BS_V, site_tags=site_tags, inplace=True)
     U_BS_V.add_tag("L3")
 
-    BSM_POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=efficiency, N=N, pnr = pnr)
-    BSM_POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=efficiency, N=N, pnr = pnr))
+    # Note that these are not used if using trajectree to implement detector inefficiency. 
+    BSM_POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=efficiencies[0], N=N, pnr = pnr)
+    BSM_POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=efficiencies[1], N=N, pnr = pnr))
 
     if return_MPOs:
         returned_MPOs = [U_BS_H, U_BS_V]
+        if use_trajectory:
+            quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "BSM") for BSM_MPO in returned_MPOs]
+
+            damping_kraus_ops_0 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[0], N = N)
+            damping_kraus_ops_1 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[1], N = N)
+            two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in damping_kraus_ops_0 for op2 in damping_kraus_ops_0]
+            two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in damping_kraus_ops_1 for op2 in damping_kraus_ops_1]
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops_0))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops_1))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+
+            amplification_kraus_ops_0 = single_mode_bosonic_noise_channels(noise_parameter = dark_counts_gain[0], N = N)
+            amplification_kraus_ops_1 = single_mode_bosonic_noise_channels(noise_parameter = dark_counts_gain[1], N = N)
+            two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in amplification_kraus_ops_0 for op2 in amplification_kraus_ops_0]
+            two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in amplification_kraus_ops_1 for op2 in amplification_kraus_ops_1]
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops_0))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops_1))) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+
+            BSM_POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=1, N=N, pnr = pnr)
+            BSM_POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
+
+            det_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, name = "DET") for DET_MPO in BSM_POVM_1_OPs]
+            quantum_channel_list.extend(det_quantum_channels)
+    
+            return quantum_channel_list
+
         returned_MPOs.extend(BSM_POVM_1_OPs) # Collect all the MPOs in a list and return them. The operators are ordered as such: 
-        return returned_MPOs
+
+        quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "BSM") for BSM_MPO in returned_MPOs]
+
+        return quantum_channel_list
 
     psi = tensor_network_apply_op_vec(U_BS_H, psi, compress=compress, contract = contract, cutoff = error_tolerance)
     psi = tensor_network_apply_op_vec(U_BS_V, psi, compress=compress, contract = contract, cutoff = error_tolerance)
@@ -140,11 +172,6 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
     # idler_angles = [0]
     # angles = [np.pi/4]
 
-    # We make this correction here since the rotator hamiltonian is 1/2(a_v b_h + a_h b_v), which does not show up in the bs unitary, whose function we are reusing to 
-    # rotate the state.
-    idler_angles = idler_angles/2
-    signal_angles = signal_angles/2
-
     coincidence = []
 
     POVM_1_OPs = generate_sqrt_POVM_MPO(sites = measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=efficiency, N=N, pnr = pnr)
@@ -158,7 +185,13 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
     for i, idler_angle in enumerate(idler_angles):
         coincidence_probs = []
 
-        rotator_node_1 = create_BS_MPO(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta=idler_angle, total_sites = num_modes, N = N, tag = r"$Rotator_I$")
+        # rotator_node_1 = create_BS_MPO(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta=idler_angle, total_sites = num_modes, N = N, tag = r"$Rotator_I$")
+        ######################
+        # We make this correction here since the rotator hamiltonian is 1/2(a_v b_h + a_h b_v), which does not show up in the bs unitary, whose function we are reusing to 
+        # rotate the state.
+        rotator_node_1 = generalized_mode_mixer(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta = -idler_angle/2, phi = [0,0], psi = [0,0], lamda = [0,0], total_sites = num_modes, N = N, tag = 'MM')
+
+        
         enforce_1d_like(rotator_node_1, site_tags=site_tags, inplace=True)
         rotator_node_1.add_tag("L5")
         if not return_MPOs: # If the user wants the MPOs, we don't need to apply the rotator to the state.
@@ -168,11 +201,17 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
         for j, angle in enumerate(signal_angles):
             # print("idler:", i, "signal:", j)
         
-            rotator_node_2 = create_BS_MPO(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta=angle, total_sites = num_modes, N = N, tag = r"$Rotator_S$")
+            # rotator_node_2 = create_BS_MPO(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta=angle, total_sites = num_modes, N = N, tag = r"$Rotator_S$")
+            ##########################
+            # We make this correction here since the rotator hamiltonian is 1/2(a_v b_h + a_h b_v), which does not show up in the bs unitary, whose function we are reusing to 
+            # rotate the state.
+            rotator_node_2 = generalized_mode_mixer(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta = -angle/2, phi = [0,0], psi = [0,0], lamda = [0,0], total_sites = num_modes, N = N, tag = 'MM') 
+            
+            
             enforce_1d_like(rotator_node_2, site_tags=site_tags, inplace=True)
 
             if return_MPOs:
-                meas_ops.extend([rotator_node_1, rotator_node_2]) # Collect all the MPOs in a list and return them
+                meas_ops = [rotator_node_1, rotator_node_2] + meas_ops # Collect all the MPOs in a list and return them
                 return meas_ops
         
             # Rotate and measure:

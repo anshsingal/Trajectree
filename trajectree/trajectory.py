@@ -1,6 +1,6 @@
 import numpy as np
-from .quimb.quimb.tensor import MatrixProductOperator as mpo #type: ignore
-from .quimb.quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
+from quimb.tensor import MatrixProductOperator as mpo #type: ignore
+from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
 
 
 

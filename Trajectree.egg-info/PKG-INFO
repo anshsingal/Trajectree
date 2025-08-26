@@ -9,10 +9,9 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: numpy
-Requires-Dist: scipy
 Requires-Dist: matplotlib
 Requires-Dist: qutip
+Requires-Dist: trajectree-quimb
 Dynamic: license-file
 
 Trajectree is a quantum trajectory theory and tensor network based quantum optics simulator. 
