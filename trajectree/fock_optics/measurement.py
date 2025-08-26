@@ -9,9 +9,9 @@ import numpy as np
 from numpy.linalg import matrix_power
 from numpy import sqrt
 
-from quimb.tensor import MatrixProductOperator as mpo #type: ignore
-from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
-from quimb.tensor.tensor_1d_compress import enforce_1d_like #type: ignore
+from ..quimb.quimb.tensor import MatrixProductOperator as mpo #type: ignore
+from ..quimb.quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
+from ..quimb.quimb.tensor.tensor_1d_compress import enforce_1d_like #type: ignore
 
 import qutip as qt
 from math import factorial

@@ -3,7 +3,7 @@ from scipy.linalg import expm
 import numpy as np
 from numpy import kron
 
-from quimb.tensor import MatrixProductOperator as mpo #type: ignore
+from ..quimb.quimb.tensor import MatrixProductOperator as mpo #type: ignore
 
 import qutip as qt
 

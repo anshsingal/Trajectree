@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Trajectree"
-dynamic = ["version"]
+version = 0.0.1
 authors = [{ name="Ansh Singal", email="asingal@u.northwestern.edu" },]
 description = "Trajectree is a quantum trajectory theory and tensor network based quantum optics simulator."
 readme = "README.md"
@@ -18,9 +18,9 @@ classifiers = [
 ]
 
 dependencies=[
-  'quimb',
   'numpy',
   'scipy',
   'matplotlib',
+  'qutip'
 ]
 
