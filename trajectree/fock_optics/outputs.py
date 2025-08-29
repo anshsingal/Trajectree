@@ -20,7 +20,7 @@ def generate_labels(num_systems, N):
         labels.append(new_label[:-1])
     return labels
 
-def read_quantum_state(TN_state, N, num_states = 4, return_dense = False, precision = 10):
+def read_quantum_state(TN_state, N, num_states = 4, return_dense = False, precision = 10, return_string = False):
     dense_state = TN_state.to_dense()
     if return_dense: return dense_state
     dense_state = np.reshape(dense_state.data, (-1, 1), order = 'C')
@@ -28,14 +28,18 @@ def read_quantum_state(TN_state, N, num_states = 4, return_dense = False, precis
     dense_state.data = np.round(dense_state.data, precision)
     dense_state.eliminate_zeros()
 
-    print_quantum_state(N, dense_state, num_states)
+    return print_quantum_state(N, dense_state, num_states, return_string)
 
-def print_quantum_state(N, dense_state, num_states = 4):
+def print_quantum_state(N, dense_state, num_states = 4, return_string = False):
     labels = generate_labels(num_states,N)
     state = dense_state.nonzero()[0]
-    print("Corresponding Basis terms:")
-    for k in state: print(labels[k],"-",k,"-",dense_state[k].data)
-
+    output = []
+    output.append("Corresponding Basis terms:")
+    for k in state: output.append(f"{labels[k]} - {k} - {dense_state[k].data}")
+    if not return_string:
+        print("\n".join(map(str, output)))
+    else:
+        return output
 
 
 def plot_coincidences(coincidence, idler_angles, signal_angles, title = ''):

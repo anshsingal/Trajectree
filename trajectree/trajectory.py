@@ -1,7 +1,7 @@
 import numpy as np
 from quimb.tensor import MatrixProductOperator as mpo #type: ignore
 from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
-
+from .fock_optics.outputs import read_quantum_state
 
 
 class quantum_channel:
@@ -84,7 +84,7 @@ class trajectory_evaluator():
     def cache_trajectree_node(self, trajectory_probs, trajectories):
         sorted_indices = np.argsort(trajectory_probs)
 
-        print("trajectory_probs", trajectory_probs)
+        # print("trajectory_probs", trajectory_probs)
 
         cached_trajectory_indices = sorted_indices[-self.cache_size:]
         cached_trajectories = np.array(trajectories)[cached_trajectory_indices]
@@ -206,5 +206,6 @@ class trajectory_evaluator():
             else:
                 # print("unitary skipped:", self.traversed_nodes)
                 pass
+            pass
 
         return psi

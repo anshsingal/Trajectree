@@ -8,6 +8,8 @@ from quimb.tensor.tensor_core import new_bond #type: ignore
 from quimb.tensor.tensor_1d_compress import enforce_1d_like #type: ignore
 from quimb.tensor.tensor_1d import TensorNetwork1DOperator #type: ignore
 
+from .outputs import read_quantum_state
+
 import qutip as qt
 import re
 
@@ -154,6 +156,7 @@ def create_bimode_bell_state(bell_state, N, error_tolerance = 1e-12):
     elif bell_state == "phi_minus":
         psi = tensor_network_apply_op_vec(NOT_MPO_0, vacuum, compress=True, contract = True, cutoff = error_tolerance)
 
+    # read_quantum_state(psi, N)
     
     psi = tensor_network_apply_op_vec(H_MPO, psi, compress=True, contract = True, cutoff = error_tolerance)
     # read_quantum_state(psi, N, num_states = 2)
