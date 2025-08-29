@@ -71,7 +71,7 @@ def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tol
         time_taken = time.time() - start
         # print("time taken for simulation", i, ":", time_taken)
 
-    print("completed set", "cache_hits:", t_eval.cache_hit, "cache_partial_hits:", t_eval.cache_partial_hit, "cache_misses:", t_eval.cache_miss,  "time taken:", time_taken)
+    # print("completed set", "cache_hits:", t_eval.cache_hit, "cache_partial_hits:", t_eval.cache_partial_hit, "cache_misses:", t_eval.cache_miss,  "time taken:", time_taken)
 
     return fidelities, probabilities, t_eval
 
