@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: Trajectree
+Version: 0.0.3
+Summary: Trajectree is a quantum trajectory theory and tensor network based quantum optics simulator.
+Author-email: Ansh Singal <asingal@u.northwestern.edu>
+License-Expression: MIT
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: matplotlib
+Requires-Dist: qutip
+Requires-Dist: trajectree-quimb
+Dynamic: license-file
+
+Trajectree is a quantum trajectory theory and tensor network based quantum optics simulator. 
