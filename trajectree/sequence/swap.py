@@ -30,7 +30,7 @@ def generate_swapping_circuit(N, num_modes, site_tags, bsm_det_effs, bsm_dark_co
 def analyze_entanglement(quantum_channel_list, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles):
     PA_MPOs = rotate_and_measure(None, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, return_MPOs = True)
     PA_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = PA_MPO) for PA_MPO in PA_MPOs]
-    print("num pa quantum channels:", len(PA_quantum_channels))
+    # print("num pa quantum channels:", len(PA_quantum_channels))
     quantum_channel_list.extend(PA_quantum_channels)
 
 
