@@ -4,7 +4,7 @@ from trajectree.fock_optics.light_sources import *
 from trajectree.fock_optics.devices import *
 from trajectree.trajectory import *
 
-from trajectree.protocols.swap import perform_swapping_simulation
+from trajectree.sequence.swap import perform_swapping_simulation
 
 import numpy as np
 
@@ -127,11 +127,15 @@ def CNOT(psi_control_modes, psi_target_modes, psi_control, psi_target, N, mean_p
     return psi
 
 
-def H(psi, sites, N, error_tolerance):
+def H(psi, sites, N, error_tolerance, return_unitary = False):
     # TODO: This function does not work for N > 2.
     # This definition is based on the paper: https://arxiv.org/pdf/quant-ph/9706022
-    H = generalized_mode_mixer(sites[0], sites[1], -np.pi/4, [0,-np.pi], [0,-np.pi], [0,0], psi.L, N)
-    # H = generalized_mode_mixer(0, 1, np.pi/4, 0, 0, 0, 2, N)
+    # unitary_H = generalized_mode_mixer(np.pi/2, 0, 0, 0, N)
+    # unitary_H = ry(np.pi/2, N, return_unitary = True) @ rx(np.pi, N, return_unitary = True)
+    unitary_H = rz(np.pi, N, return_unitary = True) @ ry(np.pi/2, N, return_unitary = True) @ rz(np.pi, N, return_unitary = True)
+    if return_unitary:
+        return unitary_H
+    H = mpo.from_dense(unitary_H, dims = N, sites = (sites[0],sites[1]), L=psi.L, tags=tag)
     enforce_1d_like(H, site_tags=psi.site_tags, inplace=True)
     psi = tensor_network_apply_op_vec(H, psi, compress=True, contract = True, cutoff = error_tolerance)
     return psi
