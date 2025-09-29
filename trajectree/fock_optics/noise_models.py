@@ -1,10 +1,13 @@
 from scipy import sparse as sp
 from scipy.linalg import expm
+from .devices import rx, ry, rz, global_phase
 
 import numpy as np
-
+from numpy import sqrt
 import qutip as qt
 from math import factorial
+from functools import lru_cache
+
 
 def single_mode_bosonic_noise_channels(noise_parameter, N):
     """This function produces the Kraus operatorsd for the single mode bosonic noise channels. This includes pure loss and 
@@ -39,3 +42,30 @@ def single_mode_bosonic_noise_channels(noise_parameter, N):
             kraus_ops[l] = kraus_ops[l].T.conjugate()
 
     return kraus_ops
+
+@lru_cache(maxsize=100)
+def depolarizing_operators(depolarizing_probability, N):
+    ops = []
+    ops.append(sqrt(1-depolarizing_probability) * sp.eye(N**2, format="csc"))
+    ops.append(sqrt((depolarizing_probability)/3) * sp.csr_matrix(rx(np.pi, N, return_unitary=True)))
+    ops.append(sqrt((depolarizing_probability)/3) * sp.csr_matrix(ry(np.pi, N, return_unitary=True)))
+    ops.append(sqrt((depolarizing_probability)/3) * sp.csr_matrix(rz(np.pi, N, return_unitary=True)))
+    return ops
+
+def two_qubit_depolarizing_channel(depolarizing_probability, N):
+    """This function produces the Kraus operators for the two qubit depolarizing channel.
+    
+    Args:
+        depolarizing_probability (float): The depolarizing probability.
+        N (int): local Hilbert space dimension being considered.
+    """
+    single_qubit_ops = [sp.csr_matrix(global_phase(0, N, return_unitary = True)), sp.csr_matrix(rx(np.pi, N, return_unitary=True)), sp.csr_matrix(ry(np.pi, N, return_unitary=True)), sp.csr_matrix(rz(np.pi, N, return_unitary=True))]
+    ops = []
+    ops.append(sqrt(1-(15/16)*depolarizing_probability) * sp.eye(N**4, format="csc"))
+    for i in range(4):
+        for j in range(4):
+            if i == 0 and j == 0:
+                continue
+            else:
+                ops.append(sqrt(depolarizing_probability/16) * sp.kron(single_qubit_ops[i], single_qubit_ops[j]))
+    return ops

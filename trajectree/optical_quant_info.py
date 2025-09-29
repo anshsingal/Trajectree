@@ -127,14 +127,20 @@ def CNOT(psi_control_modes, psi_target_modes, psi_control, psi_target, N, mean_p
     return psi
 
 
-def H(psi, sites, N, error_tolerance, return_unitary = False):
-    # TODO: This function does not work for N > 2.
+def H(psi, sites, N, error_tolerance, return_unitary = False, tag = 'H'):
     # This definition is based on the paper: https://arxiv.org/pdf/quant-ph/9706022
-    # unitary_H = generalized_mode_mixer(np.pi/2, 0, 0, 0, N)
-    # unitary_H = ry(np.pi/2, N, return_unitary = True) @ rx(np.pi, N, return_unitary = True)
-    unitary_H = rz(np.pi, N, return_unitary = True) @ ry(np.pi/2, N, return_unitary = True) @ rz(np.pi, N, return_unitary = True)
+   
+    # First, we implement a beamsplitter. We found this beamsplitter configuration using trial and error to match the Hadamard transformation.
+    unitary_H = generalized_mode_mixer_unitary(np.pi/2, np.pi/2, -np.pi/2, 2*np.pi, N)
+    # Next, we implement the -pi/2 (single mode) phase shifters on the |V> mode, before and after the beamsplitter. 
+    # Note that although it appears as if we are applying the phase shift on the |H> arm and not on the |V> arm. However, that is not true. 
+    # In the photonic representation we are using, the |0H1V> = |1> and |1H0V> = |0>, but if you look at the matrix itself, the |0H1V> state 
+    # comes first and the |1H0V> state comes second. So, according to the matrix representation, the two modes are reversed. Hence, the different phase configuration.  
+    unitary_H = np.kron(single_mode_phase(-np.pi, N), np.eye(N)) @ unitary_H @ np.kron(single_mode_phase(-np.pi, N), np.eye(N))
+
     if return_unitary:
         return unitary_H
+    
     H = mpo.from_dense(unitary_H, dims = N, sites = (sites[0],sites[1]), L=psi.L, tags=tag)
     enforce_1d_like(H, site_tags=psi.site_tags, inplace=True)
     psi = tensor_network_apply_op_vec(H, psi, compress=True, contract = True, cutoff = error_tolerance)

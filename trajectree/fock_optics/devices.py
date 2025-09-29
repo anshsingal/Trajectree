@@ -11,14 +11,28 @@ import qutip as qt
 # Beamsplitter transformation
 def create_BS_MPO(site1, site2, theta, total_sites, N, return_unitary = False, tag = 'BS'): 
     
-    a = qt.destroy(N).full()
-    a_dag = a.T
-    I = np.eye(N)
-    
-    # This corresponds to the BS hamiltonian:
+    """
+    This is a convenience function for legacy implementations. Preferably, don't  use this. Only use the generalized mode mixer.
 
-    hamiltonian_BS = -theta * ( kron(I, a_dag)@kron(a, I) - kron(I, a)@kron(a_dag, I) )
-    unitary_BS = expm(hamiltonian_BS)
+    As can be inferred from the call to the generalized_mode_mixer function, the beamsplitter transformation is equivalent to an ry rotation. 
+    The specific form is chosen because legacy code used this definition. 
+    When theta = np.pi/4, the transformation corresponds to:
+
+    a -> 1/sqrt(2) (c-d)
+    b -> 1/sqrt(2) (c+d)
+
+    """
+
+    # a = qt.destroy(N).full()
+    # a_dag = a.T
+    # I = np.eye(N)
+    
+    # # This corresponds to the BS hamiltonian:
+
+    # hamiltonian_BS = -theta * ( kron(I, a_dag)@kron(a, I) - kron(I, a)@kron(a_dag, I) )
+    # unitary_BS = expm(hamiltonian_BS)
+
+    unitary_BS = generalized_mode_mixer_unitary(-2*theta, 0, 0, 0, N)
 
     if return_unitary: 
         return unitary_BS
@@ -130,6 +144,17 @@ def generate_angular_momentum_operators(N):
 
     return L_t, L_x, L_y, L_z
 
-def generalized_mode_mixer(theta, phi, psi, lamda, N, tag = 'MM'): 
+def generalized_mode_mixer_unitary(theta, phi, psi, lamda, N): 
+    """
+    This generates the generalized beamsplitter operator. 
+    See eq. 4.12 in DOI: 10.1088/0034-4885/66/7/203
+    """
     unitary_BS = rz(phi, N, return_unitary=True) @ ry(theta, N, return_unitary=True) @ rz(psi, N, return_unitary=True) @ global_phase(lamda, N, return_unitary=True)
     return unitary_BS
+
+def generalized_mode_mixer(site1, site2, theta, phi, psi, lamda, total_sites, N, tag = 'MM'):
+    generalized_BS = generalized_mode_mixer_unitary(theta, phi, psi, lamda, N)
+    
+    BS_MPO = mpo.from_dense(generalized_BS, dims = N, sites = (site1,site2), L=total_sites, tags=tag)
+#     # BS_MPO = BS_MPO.fill_empty_sites(mode = "full")
+    return BS_MPO

@@ -172,24 +172,27 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
     # idler_angles = [0]
     # angles = [np.pi/4]
 
+    # A dict is used when the user wants to rotate around multiple axes of the bloch sphere. Otherwise, if its a list, then 
+    # we assume all measurements around the y axis.
+    if type(idler_angles) != dict:
+        idler_angles = {"theta": idler_angles, "phi":[0]*len(idler_angles), "psi":[0]*len(idler_angles)}
+    if type(signal_angles) != dict:
+        signal_angles = {"theta": signal_angles, "phi":[0]*len(signal_angles), "psi":[0]*len(signal_angles)}
+    
+
+
     coincidence = []
 
     POVM_1_OPs = generate_sqrt_POVM_MPO(sites = measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=efficiency, N=N, pnr = pnr)
     POVM_0_OPs = generate_sqrt_POVM_MPO(sites = measurements[0], outcome = 0, total_sites=num_modes, efficiency=efficiency, N=N, pnr = pnr)
-    # POVM_0_OPs = generate_sqrt_POVM_MPO(sites=(0,4), outcome = 0, total_sites=num_modes, efficiency=efficiency, N=N, pnr = pnr)
-    # enforce_1d_like(POVM_OP, site_tags=site_tags, inplace=True)
 
     meas_ops = POVM_1_OPs
     meas_ops.extend(POVM_0_OPs)
 
-    for i, idler_angle in enumerate(idler_angles):
+    for i in range(len(idler_angles["theta"])):
         coincidence_probs = []
 
-        # rotator_node_1 = create_BS_MPO(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta=idler_angle, total_sites = num_modes, N = N, tag = r"$Rotator_I$")
-        ######################
-        # We make this correction here since the rotator hamiltonian is 1/2(a_v b_h + a_h b_v), which does not show up in the bs unitary, whose function we are reusing to 
-        # rotate the state.
-        rotator_node_1 = generalized_mode_mixer(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta = -idler_angle/2, phi = [0,0], psi = [0,0], lamda = [0,0], total_sites = num_modes, N = N, tag = 'MM')
+        rotator_node_1 = generalized_mode_mixer(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta = idler_angles["theta"][i], phi = idler_angles["phi"][i], psi = idler_angles["psi"][i], lamda = 0, total_sites = num_modes, N = N, tag = 'MM')
 
         
         enforce_1d_like(rotator_node_1, site_tags=site_tags, inplace=True)
@@ -198,14 +201,14 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
             idler_rotated_psi = tensor_network_apply_op_vec(rotator_node_1, psi, compress=compress, contract = contract, cutoff = error_tolerance)
 
 
-        for j, angle in enumerate(signal_angles):
+        for j in range(len(signal_angles["theta"])):
             # print("idler:", i, "signal:", j)
         
             # rotator_node_2 = create_BS_MPO(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta=angle, total_sites = num_modes, N = N, tag = r"$Rotator_S$")
             ##########################
             # We make this correction here since the rotator hamiltonian is 1/2(a_v b_h + a_h b_v), which does not show up in the bs unitary, whose function we are reusing to 
             # rotate the state.
-            rotator_node_2 = generalized_mode_mixer(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta = -angle/2, phi = [0,0], psi = [0,0], lamda = [0,0], total_sites = num_modes, N = N, tag = 'MM') 
+            rotator_node_2 = generalized_mode_mixer(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta = signal_angles["theta"][j], phi = signal_angles["phi"][j], psi = signal_angles["psi"][j], lamda = 0, total_sites = num_modes, N = N, tag = 'MM') 
             
             
             enforce_1d_like(rotator_node_2, site_tags=site_tags, inplace=True)
