@@ -1,4 +1,4 @@
-from .devices import generalized_mode_mixer, create_BS_MPO
+from .devices import generalized_mode_mixer, create_BS_MPO, ry
 from ..trajectory import quantum_channel
 from .noise_models import single_mode_bosonic_noise_channels
 
@@ -174,10 +174,10 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
 
     # A dict is used when the user wants to rotate around multiple axes of the bloch sphere. Otherwise, if its a list, then 
     # we assume all measurements around the y axis.
-    if type(idler_angles) != dict:
-        idler_angles = {"theta": idler_angles, "phi":[0]*len(idler_angles), "psi":[0]*len(idler_angles)}
-    if type(signal_angles) != dict:
-        signal_angles = {"theta": signal_angles, "phi":[0]*len(signal_angles), "psi":[0]*len(signal_angles)}
+    # if type(idler_angles) != dict:
+    #     idler_angles = {"theta": idler_angles, "phi":[0]*len(idler_angles), "psi":[0]*len(idler_angles)}
+    # if type(signal_angles) != dict:
+    #     signal_angles = {"theta": signal_angles, "phi":[0]*len(signal_angles), "psi":[0]*len(signal_angles)}
     
 
 
@@ -189,11 +189,11 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
     meas_ops = POVM_1_OPs
     meas_ops.extend(POVM_0_OPs)
 
-    for i in range(len(idler_angles["theta"])):
+    for i in range(len(idler_angles)):
         coincidence_probs = []
 
-        rotator_node_1 = generalized_mode_mixer(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta = idler_angles["theta"][i], phi = idler_angles["phi"][i], psi = idler_angles["psi"][i], lamda = 0, total_sites = num_modes, N = N, tag = 'MM')
-
+        # rotator_node_1 = generalized_mode_mixer(site1 = rotations["idler"][0], site2 = rotations["idler"][1], theta = idler_angles[i], phi = 0, psi = 0, lamda = 0, total_sites = num_modes, N = N, tag = 'MM')
+        rotator_node_1 = ry(idler_angles[i], N, site1 = rotations["idler"][0], site2 = rotations["idler"][1], total_sites = num_modes, tag = 'ry')
         
         enforce_1d_like(rotator_node_1, site_tags=site_tags, inplace=True)
         rotator_node_1.add_tag("L5")
@@ -201,20 +201,21 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
             idler_rotated_psi = tensor_network_apply_op_vec(rotator_node_1, psi, compress=compress, contract = contract, cutoff = error_tolerance)
 
 
-        for j in range(len(signal_angles["theta"])):
+        for j in range(len(signal_angles)):
             # print("idler:", i, "signal:", j)
         
             # rotator_node_2 = create_BS_MPO(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta=angle, total_sites = num_modes, N = N, tag = r"$Rotator_S$")
             ##########################
             # We make this correction here since the rotator hamiltonian is 1/2(a_v b_h + a_h b_v), which does not show up in the bs unitary, whose function we are reusing to 
             # rotate the state.
-            rotator_node_2 = generalized_mode_mixer(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta = signal_angles["theta"][j], phi = signal_angles["phi"][j], psi = signal_angles["psi"][j], lamda = 0, total_sites = num_modes, N = N, tag = 'MM') 
-            
+            # rotator_node_2 = generalized_mode_mixer(site1 = rotations["signal"][0], site2 = rotations["signal"][1], theta = signal_angles[j], phi = 0, psi = 0, lamda = 0, total_sites = num_modes, N = N, tag = 'MM') 
+            rotator_node_2 = ry(signal_angles[j], N, site1 = rotations["signal"][0], site2 = rotations["signal"][1], total_sites = num_modes, tag = 'ry')
+            # print("checling node2 unitarity:", sp.csr_array(np.round(rotator_node_2.to_dense() @ rotator_node_2.to_dense().T.conj() - np.eye(N**2), 5)))
             
             enforce_1d_like(rotator_node_2, site_tags=site_tags, inplace=True)
 
             if return_MPOs:
-                meas_ops = [rotator_node_1, rotator_node_2] + meas_ops # Collect all the MPOs in a list and return them
+                meas_ops = [rotator_node_1, rotator_node_2] # + meas_ops # Collect all the MPOs in a list and return them
                 return meas_ops
         
             # Rotate and measure:
