@@ -10,7 +10,7 @@ def generate_labels(num_systems, N):
     labels = []
     state_labels = []
     for i in range(dim):
-        state_labels.append(f"{i//N}H{i%N}V")
+        state_labels.append(f"{i%N}H{i//N}V")
     # print("sates:", self.state_labels)
     for i in range(dim**num_systems):
         new_label = ""

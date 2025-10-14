@@ -69,7 +69,9 @@ class trajectory_evaluator():
 
             trajectory = tensor_network_apply_op_vec(kraus_MPO, psi, compress=True, contract = True, cutoff = error_tolerance)
             trajectory_prob = np.real(trajectory.H @ trajectory)
-            
+            # trajectory = trajectory / np.sqrt(trajectory_prob)
+            trajectory /= np.sqrt(trajectory_prob)
+
             if trajectory_prob < 1e-25: # Using 1e-25 arbitrarily. Trajectories with probability less than this are pruned.  
                 continue
 
@@ -137,6 +139,7 @@ class trajectory_evaluator():
                 self.cache_partial_hit += 1
                 psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance) # If not, simply calculate that trajectory. 
                                                                                                                                                                                              # You don't need to cache it since we have already cached what we had to.  
+                psi /= np.sqrt(node.probs[selected_trajectory_index])
                 if normalize:
                     psi.normalize()
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)

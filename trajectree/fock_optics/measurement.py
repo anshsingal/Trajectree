@@ -215,7 +215,7 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
             enforce_1d_like(rotator_node_2, site_tags=site_tags, inplace=True)
 
             if return_MPOs:
-                meas_ops = [rotator_node_1, rotator_node_2] # + meas_ops # Collect all the MPOs in a list and return them
+                meas_ops = [rotator_node_1, rotator_node_2] + meas_ops # Collect all the MPOs in a list and return them
                 return meas_ops
         
             # Rotate and measure:

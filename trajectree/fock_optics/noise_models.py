@@ -44,12 +44,12 @@ def single_mode_bosonic_noise_channels(noise_parameter, N):
     return kraus_ops
 
 @lru_cache(maxsize=100)
-def depolarizing_operators(depolarizing_probability, N):
+def depolarizing_operators(depolarizing_probability, N, bias = (1/3, 1/3, 1/3)):
     ops = []
     ops.append(sqrt(1-depolarizing_probability) * sp.eye(N**2, format="csc"))
-    ops.append(sqrt((depolarizing_probability)/3) * sp.csr_matrix(rx(np.pi, N, return_unitary=True)))
-    ops.append(sqrt((depolarizing_probability)/3) * sp.csr_matrix(ry(np.pi, N, return_unitary=True)))
-    ops.append(sqrt((depolarizing_probability)/3) * sp.csr_matrix(rz(np.pi, N, return_unitary=True)))
+    ops.append(sqrt(depolarizing_probability * bias[0]) * sp.csr_matrix(rx(np.pi, N, return_unitary=True)))
+    ops.append(sqrt(depolarizing_probability * bias[1]) * sp.csr_matrix(ry(np.pi, N, return_unitary=True)))
+    ops.append(sqrt(depolarizing_probability * bias[2]) * sp.csr_matrix(rz(np.pi, N, return_unitary=True)))
     return ops
 
 def two_qubit_depolarizing_channel(depolarizing_probability, N):

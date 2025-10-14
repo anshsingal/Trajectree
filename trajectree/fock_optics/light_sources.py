@@ -20,7 +20,7 @@ def create_TMSV_OP_Dense(N, mean_photon_num):
     a_dag = a.T
     truncation = (N-1)   
 
-    op = expm(1j * mean_photon_num * (kron(a_dag, a_dag) + kron(a, a)))
+    op = expm(- mean_photon_num * (kron(a_dag, a_dag) - kron(a, a)))
 
     return op
 

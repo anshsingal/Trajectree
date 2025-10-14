@@ -132,8 +132,8 @@ def generate_angular_momentum_operators(N):
     a_dag = a.T
     I = np.eye(N)
 
-    a1 = kron(a, I)
-    a2 = kron(I, a)
+    a1 = kron(I, a)
+    a2 = kron(a, I)
     a1_dag = a1.T
     a2_dag = a2.T
     
