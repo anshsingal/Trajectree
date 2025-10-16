@@ -20,7 +20,10 @@ def create_TMSV_OP_Dense(N, mean_photon_num):
     a_dag = a.T
     truncation = (N-1)   
 
-    op = expm(- mean_photon_num * (kron(a_dag, a_dag) - kron(a, a)))
+    # We convert the mean photon number to the squeezing parameter chi using the relation in paper: https://doi.org/10.1103/PhysRevA.98.063842
+    chi = np.asinh(np.sqrt(mean_photon_num))
+
+    op = expm(- chi * (kron(a_dag, a_dag) - kron(a, a)))
 
     return op
 
