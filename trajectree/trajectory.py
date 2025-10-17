@@ -33,14 +33,15 @@ class quantum_channel:
     def calc_mpos(ops, N, sites, num_modes):
         MPOs = []
         for op in ops:
+            # print("matrix norm:", np.linalg.norm(op.todense()))
             MPO = mpo.from_dense(op.todense(), dims = N, sites = sites, L=num_modes, tags="op")
             MPOs.append(MPO)
         return MPOs
 
 
 class trajectree_node:
-    def __init__(self, probs, trajectories, trajectory_indices):
-        self.probs = probs
+    def __init__(self, weights, trajectories, trajectory_indices):
+        self.weights = weights
         self.trajectories = trajectories
         self.trajectory_indices = trajectory_indices
 
@@ -63,35 +64,36 @@ class trajectory_evaluator():
 
 
     def apply_kraus(self, psi, kraus_MPOs, error_tolerance, normalize = True):
-        trajectory_probs = np.array([])
+        trajectory_weights = np.array([])
         trajectories = np.array([])
         for kraus_MPO in kraus_MPOs:
 
             trajectory = tensor_network_apply_op_vec(kraus_MPO, psi, compress=True, contract = True, cutoff = error_tolerance)
-            trajectory_prob = np.real(trajectory.H @ trajectory)
-            # trajectory = trajectory / np.sqrt(trajectory_prob)
-            trajectory /= np.sqrt(trajectory_prob)
+            
+            # this weight is almost arbitrary (can be greater than 1). This is because the Kraus operators themselves are not unitary. 
+            trajectory_weight = np.real(trajectory.H @ trajectory)
 
-            if trajectory_prob < 1e-25: # Using 1e-25 arbitrarily. Trajectories with probability less than this are pruned.  
+            if trajectory_weight < 1e-25: # Using 1e-25 arbitrarily. Trajectories with weight less than this are pruned.  
                 continue
 
             if normalize:
-                trajectory.normalize()
-            trajectory_probs = np.append(trajectory_probs, trajectory_prob)
+                # After this, the trajectory is always normalized. 
+                trajectory /= np.sqrt(trajectory_weight)
+            trajectory_weights = np.append(trajectory_weights, trajectory_weight)
             trajectories = np.append(trajectories, trajectory)
 
-        return trajectories, trajectory_probs
+        return trajectories, trajectory_weights
 
 
-    def cache_trajectree_node(self, trajectory_probs, trajectories):
-        sorted_indices = np.argsort(trajectory_probs)
+    def cache_trajectree_node(self, trajectory_weights, trajectories):
+        sorted_indices = np.argsort(trajectory_weights)
 
-        # print("trajectory_probs", trajectory_probs)
+        # print("trajectory_weights", trajectory_weights)
 
         cached_trajectory_indices = sorted_indices[-self.cache_size:]
         cached_trajectories = np.array(trajectories)[cached_trajectory_indices]
 
-        new_node = trajectree_node(trajectory_probs, cached_trajectories, cached_trajectory_indices)
+        new_node = trajectree_node(trajectory_weights, cached_trajectories, cached_trajectory_indices)
         self.trajectree[len(self.traversed_nodes)][self.traversed_nodes] = new_node
 
         self.last_cached_node = new_node
@@ -101,12 +103,12 @@ class trajectory_evaluator():
 
     def discover_trajectree_node(self, psi, kraus_MPOs, error_tolerance, normalize = True, selected_trajectory_index = None):
         
-        trajectories, trajectory_probs = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
+        trajectories, trajectory_weights = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
 
-        cached_trajectory_indices = self.cache_trajectree_node(trajectory_probs, trajectories) # cached_trajectory_indices is returned only for debugging. 
+        cached_trajectory_indices = self.cache_trajectree_node(trajectory_weights, trajectories) # cached_trajectory_indices is returned only for debugging. 
 
         if selected_trajectory_index == None:
-            selected_trajectory_index = np.random.choice(a = len(trajectory_probs), p = trajectory_probs/sum(trajectory_probs))
+            selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
         
         self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
 
@@ -126,7 +128,7 @@ class trajectory_evaluator():
                                                                                # has the path that the present traversal has taken. 
             node = self.trajectree[len(self.traversed_nodes)][self.traversed_nodes] # If found, index that node into the node object to call the probabilities and trajectories cached inside it.
             if selected_trajectory_index == None:
-                selected_trajectory_index = np.random.choice(a = len(node.probs), p = node.probs/sum(node.probs)) # The cached nodes have all the probabilities, but not all the trajectories cache. So, we can select
+                selected_trajectory_index = np.random.choice(a = len(node.weights), p = node.weights/sum(node.weights)) # The cached nodes have all the weights, but not all the trajectories cache. So, we can select
                                                                                                   # what trajecory our traversal takes and later see if the actual trajectory has been cached or needs to be retrieved. 
             self.cache_unitary = False # If the node has been found, we do not cache the unitary. The unitary is either already cached or we don't need to cache it at all.
 
@@ -139,13 +141,13 @@ class trajectory_evaluator():
                 self.cache_partial_hit += 1
                 psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance) # If not, simply calculate that trajectory. 
                                                                                                                                                                                              # You don't need to cache it since we have already cached what we had to.  
-                psi /= np.sqrt(node.probs[selected_trajectory_index])
                 if normalize:
-                    psi.normalize()
+                    # After this, the trajectory is always normalized. 
+                    psi /= np.sqrt(node.weights[selected_trajectory_index])
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
 
 
-        else: # If the node has not been discovered, we'll have to find all probabilities and cache the results. 
+        else: # If the node has not been discovered, we'll have to find all weights and cache the results. 
             self.skip_unitary = False
             self.cache_unitary = True
             self.cache_miss += 1

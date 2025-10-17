@@ -128,7 +128,8 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_coun
         returned_MPOs = [U_BS_H, U_BS_V]
         if use_trajectory:
             quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "beam splitter") for BSM_MPO in returned_MPOs]
-
+            # # Debugging:
+            # return returned_MPOs
             damping_kraus_ops_0 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[0], N = N)
             damping_kraus_ops_1 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[1], N = N)
             two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in damping_kraus_ops_0 for op2 in damping_kraus_ops_0]
