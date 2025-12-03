@@ -21,5 +21,6 @@ dependencies=[
   'matplotlib',
   'qutip',
   'trajectree-quimb'
+  'treelib'
 ]
 

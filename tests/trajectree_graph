@@ -1,0 +1,12 @@
+digraph tree {
+	"()" [label="()", shape=circle]
+	"(0,)" [label="(0,)", shape=circle]
+	"(0, 1)" [label="(0, 1)", shape=circle]
+	"(0, 1, 0)" [label="(0, 1, 0)", shape=circle]
+	"(0, 1, 0, 0)" [label="(0, 1, 0, 0)", shape=circle]
+
+	"()" -> "(0,)"
+	"(0,)" -> "(0, 1)"
+	"(0, 1)" -> "(0, 1, 0)"
+	"(0, 1, 0)" -> "(0, 1, 0, 0)"
+}

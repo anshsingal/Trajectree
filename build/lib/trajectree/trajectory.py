@@ -72,7 +72,6 @@ class trajectory_evaluator():
         trajectory_weights = np.array([])
         trajectories = np.array([])
 
-        # read_quantum_state(psi, N=3)
         for kraus_MPO in kraus_MPOs:
 
             trajectory = tensor_network_apply_op_vec(kraus_MPO, psi, compress=True, contract = True, cutoff = error_tolerance)
@@ -81,13 +80,9 @@ class trajectory_evaluator():
 
             # this weight is almost arbitrary (can be greater than 1). This is because the Kraus operators themselves are not unitary. 
             trajectory_weight = np.real(trajectory.H @ trajectory)
-            # print("trajectory weight:", trajectory_weight)
-            # print("trajectory:")
-            # read_quantum_state(trajectory, N=3)
-            # print()
 
-            # if trajectory_weight < 1e-25: # Using 1e-25 arbitrarily. Trajectories with weight less than this are pruned.  
-            #     continue
+            if trajectory_weight < 1e-25: # Using 1e-25 arbitrarily. Trajectories with weight less than this are pruned.  
+                continue
 
             if normalize:
                 # After this, the trajectory is always normalized. 
@@ -95,9 +90,6 @@ class trajectory_evaluator():
                 # trajectory.normalize()
             trajectory_weights = np.append(trajectory_weights, trajectory_weight)
             trajectories = np.append(trajectories, trajectory)
-        # print("trajectories:")
-        # for i in range(len(trajectories)):
-        #     read_quantum_state(trajectories[i], N=3)
 
         return trajectories, trajectory_weights
 
@@ -123,18 +115,13 @@ class trajectory_evaluator():
 
 
     def discover_trajectree_node(self, psi, kraus_MPOs, error_tolerance, normalize = True, selected_trajectory_index = None):
-        # read_quantum_state(psi, N=3)
+        
         trajectories, trajectory_weights = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
 
         cached_trajectory_indices = self.cache_trajectree_node(trajectory_weights, trajectories) # cached_trajectory_indices is returned only for debugging. 
 
         if selected_trajectory_index == None:
-            try:
-                selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
-            except:
-                self.graph.show()
-                raise Exception(f"traversed nodes: {self.traversed_nodes} trajectory_weights: {trajectory_weights} invalid")
-
+            selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
         
         self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
 
@@ -145,7 +132,7 @@ class trajectory_evaluator():
         self.skip_unitary = False
         self.cache_unitary = False
         # print("entering trajectree magnitude:", psi.H @ psi)
-        
+
         if cache == False:
             psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance)
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
@@ -155,10 +142,8 @@ class trajectory_evaluator():
                                                                                # has the path that the present traversal has taken. 
             node = self.trajectree[len(self.traversed_nodes)][self.traversed_nodes] # If found, index that node into the node object to call the probabilities and trajectories cached inside it.
             if selected_trajectory_index == None:
-                # print("cached weights:", node.weights, "at:", self.traversed_nodes)
                 selected_trajectory_index = np.random.choice(a = len(node.weights), p = node.weights/sum(node.weights)) # The cached nodes have all the weights, but not all the trajectories cache. So, we can select
                                                                                                   # what trajecory our traversal takes and later see if the actual trajectory has been cached or needs to be retrieved. 
-                # print("cached weights:", node.weights, "at:", self.traversed_nodes, "selected trajectory:", selected_trajectory_index)
             self.cache_unitary = False # If the node has been found, we do not cache the unitary. The unitary is either already cached or we don't need to cache it at all.
 
             if selected_trajectory_index in node.trajectory_indices: # See if the selected trajectory's MPS has been cached or not. 
@@ -170,17 +155,13 @@ class trajectory_evaluator():
                 self.cache_partial_hit += 1
                 psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance) # If not, simply calculate that trajectory. 
                                                                                                                                                                                              # You don't need to cache it since we have already cached what we had to.  
-                # print("cache partial hit. new state:" )
-                # read_quantum_state(psi, N=3)
                 if normalize:
                     # After this, the trajectory is always normalized. 
                     psi /= np.sqrt(node.weights[selected_trajectory_index])
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
 
 
-        else: # If the node has not been discovered, we'll have to find all weights and cache the results.
-            # print("exploring new node at:", self.traversed_nodes)
-            # read_quantum_state(psi, N=3) 
+        else: # If the node has not been discovered, we'll have to find all weights and cache the results. 
             self.skip_unitary = False
             self.cache_unitary = True
             self.cache_miss += 1
@@ -217,15 +198,10 @@ class trajectory_evaluator():
         for quantum_channel in self.quantum_channels:
             if quantum_channel.formalism == 'kraus':
                 kraus_MPOs = quantum_channel.get_MPOs()
-                # print("before kraus ops:")
-                # read_quantum_state(psi, N=3)
                 if not trajectree_indices == None: # If the list of trajectoery indices is provided, we will use that to traverse the trajectree. The random number generators will not be used.
                     psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, cache, trajectree_indices.pop(0), normalize)
                 else: # In this branch, you actually select the trajectory redomly and perform realistic simulations. 
-                    # read_quantum_state(psi, N=3)
                     psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, cache = cache, normalize = normalize)
-                # print("after kraus ops:")
-                # read_quantum_state(psi, N=3)
 
             elif quantum_channel.formalism == 'closed' and not self.skip_unitary:
                 unitary_MPOs = quantum_channel.get_MPOs()
@@ -251,7 +227,5 @@ class trajectory_evaluator():
                 # print("unitary skipped:", self.traversed_nodes)
                 pass
             pass
-        # read_quantum_state(psi, N=3)
-        # print("next operation:")
 
         return psi
