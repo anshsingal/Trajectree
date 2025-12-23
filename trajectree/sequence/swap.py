@@ -15,13 +15,14 @@ def generate_swapping_circuit(N, num_modes, site_tags, bsm_det_effs, bsm_dark_co
 
     # Amplitude damping due to fibers
     damping_kraus_ops = single_mode_bosonic_noise_channels(noise_parameter = channel_loss, N = N)
-    two_mode_kraus_ops = [sp.kron(op, op) for op in damping_kraus_ops]
+    two_mode_kraus_ops = [[sp.kron(op1, op2) for op1 in damping_kraus_ops for op2 in damping_kraus_ops][0]]
     quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops), name = "fiber_attenuation")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
     quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops), name = "fiber_attenuation")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
 
     # Quantum channel for the Bell state measurement
     # BSM_MPOs = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, error_tolerance, measurements = bsm_measurements, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
     # BSM_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "BSM") for BSM_MPO in BSM_MPOs]
+    
     BSM_quantum_channels = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, bsm_dark_counts_gain, error_tolerance, measurements = bsm_measurements, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
     quantum_channel_list.extend(BSM_quantum_channels)
 
@@ -44,28 +45,38 @@ def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance
     psi = extend_MPS(psi)
     return psi
 
-def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tolerance = 1e-10):
+def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tolerance = 1e-10, cache_size = 2):
 
     psi = create_swapping_initial_state(num_modes, N, params["chi"], error_tolerance)
+
+    # print("initial state:")
+    # read_quantum_state(psi, N)
+
+    quantum_channels = []
+
+    # phase_flip_ops = [sp.csr_matrix(global_phase(0, N, return_unitary = True, site1 = 0, site2 = 1, total_sites = 2))]
+    # quantum_channels.append(quantum_channel(N = N, num_modes = 8, formalism = "kraus", kraus_ops_tuple = ((0,1), phase_flip_ops), name = "first_kraus"))
 
     quantum_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, [params["BSM_det_loss_1"], params["BSM_det_loss_2"]], [params["BSM_dark_counts_1"], params["BSM_dark_counts_2"]], params["BSM_meas"], params["channel_loss"], error_tolerance)
 
     if params["if_analyze_entanglement"]:
         analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"])
 
-    t_eval = trajectory_evaluator(quantum_channels)
+    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size)
 
     fidelities = []
     probabilities = []
 
     for i in range(num_simulations): 
         start = time.time()
-        psi_iter = copy.deepcopy(t_eval.perform_simulation(psi, error_tolerance, normalize = False))
+        psi_iter = copy.deepcopy(t_eval.perform_simulation(psi, error_tolerance, cache = cache, normalize = True))
+
+        # read_quantum_state(psi_iter, N)
 
         probabilities.append(psi_iter.normalize())
         
         if params["calc_fidelity"]:
-            fidelity = np.abs(calc_fidelity_swapping(psi_iter, "psi_plus", N, error_tolerance))
+            fidelity = np.abs(calc_fidelity_swapping(psi_iter, "psi_minus", N, error_tolerance))
             fidelities.append(fidelity)
     
         time_taken = time.time() - start

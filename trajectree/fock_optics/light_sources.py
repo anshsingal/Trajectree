@@ -15,7 +15,7 @@ import qutip as qt
 from math import factorial
 
 
-def create_TMSV_OP_Dense(N, mean_photon_num):
+def create_TMSV_OP_Dense(N, mean_photon_num, phi = np.pi, theta = np.pi):
     a = qt.destroy(N).full()
     a_dag = a.T
     truncation = (N-1)   
@@ -23,7 +23,7 @@ def create_TMSV_OP_Dense(N, mean_photon_num):
     # We convert the mean photon number to the squeezing parameter chi using the relation in paper: https://doi.org/10.1103/PhysRevA.98.063842
     chi = np.asinh(np.sqrt(mean_photon_num))
 
-    op = expm(- chi * (kron(a_dag, a_dag) - kron(a, a)))
+    op = expm(np.exp(1j * phi) * chi * (kron(a_dag, a_dag) + np.exp(1j * theta) * kron(a, a)))
 
     return op
 

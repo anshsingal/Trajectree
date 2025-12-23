@@ -12,6 +12,8 @@ from functools import lru_cache
 def single_mode_bosonic_noise_channels(noise_parameter, N):
     """This function produces the Kraus operatorsd for the single mode bosonic noise channels. This includes pure loss and 
     pure gain channels. The pure gain channel is simply the transpose of the pure loss channel.
+
+    This implementation is based on the definitions in the paper: https://doi.org/10.1103/PhysRevA.97.032346
     
     Args:
         noise_parameter (float): The noise parameter, (loss for pure loss and gain for pure gain channels). For the pure loss channel, this 

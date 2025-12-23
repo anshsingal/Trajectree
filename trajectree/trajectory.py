@@ -90,9 +90,12 @@ class trajectory_evaluator():
             #     continue
 
             if normalize:
-                # After this, the trajectory is always normalized. 
-                trajectory /= np.sqrt(trajectory_weight)
-                # trajectory.normalize()
+                # After this, the trajectory is always normalized.
+                if trajectory_weight < 1e-25:
+                    trajectory = None
+                else: 
+                    trajectory /= np.sqrt(trajectory_weight)
+
             trajectory_weights = np.append(trajectory_weights, trajectory_weight)
             trajectories = np.append(trajectories, trajectory)
         # print("trajectories:")
@@ -147,9 +150,11 @@ class trajectory_evaluator():
         # print("entering trajectree magnitude:", psi.H @ psi)
         
         if cache == False:
-            psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance)
+            trajectories, trajectory_weights = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
+            selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
+            # psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance)
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
-            return psi
+            return trajectories[selected_trajectory_index]
 
         if self.traversed_nodes in self.trajectree[len(self.traversed_nodes)]: # Check if the dictionary at level where the traversal is now, i.e., len(self.traversed_nodes)
                                                                                # has the path that the present traversal has taken. 
@@ -206,7 +211,8 @@ class trajectory_evaluator():
 
     def update_cached_node(self, unitary_MPOs, last_cached_node, error_tolerance):
         for kraus_idx in range(len(last_cached_node.trajectories)):
-            last_cached_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_cached_node.trajectories[kraus_idx], unitary_MPOs, error_tolerance)
+            if last_cached_node.trajectories[kraus_idx] is not None:
+                last_cached_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_cached_node.trajectories[kraus_idx], unitary_MPOs, error_tolerance)
 
 
     # NOTE: USE NORMALIZE = TRUE FOR TRAJECTORY SIMULATIONS. USE NORMALIZE = FALSE FOR DENSITY MATRIX CALCULATIONS.
@@ -215,6 +221,7 @@ class trajectory_evaluator():
         self.skip_unitary = False
         self.cache_unitary = False
         for quantum_channel in self.quantum_channels:
+            print("operation:", quantum_channel.name, "formalism:", quantum_channel.formalism, "traversed nodes:", self.traversed_nodes)
             if quantum_channel.formalism == 'kraus':
                 kraus_MPOs = quantum_channel.get_MPOs()
                 # print("before kraus ops:")
@@ -251,7 +258,7 @@ class trajectory_evaluator():
                 # print("unitary skipped:", self.traversed_nodes)
                 pass
             pass
-        # read_quantum_state(psi, N=3)
-        # print("next operation:")
+            # read_quantum_state(psi, N=6)
+            print("next operation:")
 
         return psi
