@@ -45,7 +45,7 @@ def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance
     psi = extend_MPS(psi)
     return psi
 
-def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tolerance = 1e-10, cache_size = 2):
+def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tolerance = 1e-10, cache = True):
 
     psi = create_swapping_initial_state(num_modes, N, params["chi"], error_tolerance)
 
@@ -62,7 +62,7 @@ def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tol
     if params["if_analyze_entanglement"]:
         analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"])
 
-    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size)
+    t_eval = trajectory_evaluator(quantum_channels)
 
     fidelities = []
     probabilities = []
