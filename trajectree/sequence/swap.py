@@ -45,7 +45,7 @@ def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance
     psi = extend_MPS(psi)
     return psi
 
-def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tolerance = 1e-10, cache = True):
+def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tolerance = 1e-10, cache_size = 2):
 
     psi = create_swapping_initial_state(num_modes, N, params["chi"], error_tolerance)
 
@@ -62,14 +62,15 @@ def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tol
     if params["if_analyze_entanglement"]:
         analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"])
 
-    t_eval = trajectory_evaluator(quantum_channels)
+    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size)
 
     fidelities = []
     probabilities = []
+    iter_time = []
 
     for i in range(num_simulations): 
         start = time.time()
-        psi_iter = copy.deepcopy(t_eval.perform_simulation(psi, error_tolerance, cache = cache, normalize = True))
+        psi_iter = copy.deepcopy(t_eval.perform_simulation(psi, error_tolerance, normalize = True))
 
         # read_quantum_state(psi_iter, N)
 
@@ -79,10 +80,10 @@ def perform_swapping_simulation(N, num_modes, num_simulations, params, error_tol
             fidelity = np.abs(calc_fidelity_swapping(psi_iter, "psi_minus", N, error_tolerance))
             fidelities.append(fidelity)
     
-        time_taken = time.time() - start
+        iter_time.append(time.time() - start)
         # print("time taken for simulation", i, ":", time_taken)
 
     # print("completed set", "cache_hits:", t_eval.cache_hit, "cache_partial_hits:", t_eval.cache_partial_hit, "cache_misses:", t_eval.cache_miss,  "time taken:", time_taken)
 
-    return fidelities, probabilities, t_eval
+    return fidelities, probabilities, t_eval, iter_time
 
