@@ -45,6 +45,84 @@ def single_mode_bosonic_noise_channels(noise_parameter, N):
 
     return kraus_ops
 
+def _nck(n,k):
+    """Compute the binomial coefficient "n choose k"."""
+    if k < 0 or k > n:
+        return 0
+    return factorial(n) / (factorial(k) * factorial(n - k))
+
+def general_coherent_bs_noise_model(bath_parameter, theta, N, bath_type='coherent'):
+    """This function produces the Kraus operators for a general beamsplitter noise model with a pure coherent bath.
+    
+    Args:
+        bath_parameter (float): The parameter of the bath (thermal or coherent).
+        theta (float): The beamsplitter transmissivity.
+        N (int): local Hilbert space dimension being considered.
+    """
+    a = qt.destroy(N).full()
+    a_dag = qt.create(N).full()
+    n = a_dag @ a
+
+    basis = lambda i: qt.states.basis(N, i).full()
+    if bath_type == 'coherent':
+        bath_state = lambda n: np.sqrt(np.exp(-np.abs(bath_parameter)**2) / factorial(n)) * bath_parameter**n 
+        
+    kraus_ops = []
+
+    for k in range(N):
+        kraus_op = 0
+        for n in range(N):
+            for q in range(N):
+                coeff = 0
+                for r_2 in range(n):
+                    coeff += bath_state(n) * np.sqrt(_nck(q, q+n-(k+r_2)) * _nck(n, r_2)) * (1j)**(n-r_2) * np.cos(theta)**(k+2*r_2-n) * np.sin(theta)**(q+2*n - k - 2*r_2)
+                kraus_op += coeff * basis(q+n-k) @ basis(q).T
+        kraus_ops.append(kraus_op)
+
+    return kraus_ops
+
+
+def general_mixed_bs_noise_model(dark_count_rate, eta, N):
+    """This function produces the Kraus operators for a general beamsplitter noise model with mixed thermal bath.
+    
+    Args:
+        dark_count_rate (float): Rate of detector dark counts per second
+        theta (float): The beamsplitter transmissivity.
+        N (int): local Hilbert space dimension being considered.
+    """
+    a = qt.destroy(N).full()
+    a_dag = qt.create(N).full()
+    n = a_dag @ a
+
+    basis = lambda i: qt.states.basis(N, i).full()
+    r = np.atanh(np.sqrt(dark_count_rate/(1-eta+eta*dark_count_rate))) # We can also calulate the mean photon number of the fictitious thermal bath as sinh(r)**2
+
+    kraus_ops = []
+
+    theta = np.arcsin(np.sqrt(eta))
+
+    for n in range(N):
+        bath_state = np.sqrt(np.cosh(r)**2 * np.tanh(r)**(2*n)) 
+        for k in range(N):
+            kraus_op = 0
+            # flag = False
+            for q in range(N):
+                if q+n-k < N and q+n-k >= 0:
+                    # flag = True
+                    coeff = 0
+                    for r_2 in range(n+1):
+                        coeff += bath_state * np.sqrt(_nck(q, q+n-(k+r_2)) * _nck(n, r_2)) * (1j)**(n-r_2) * np.cos(theta)**(k+2*r_2-n) * np.sin(theta)**(q+2*n - k - 2*r_2)
+                        # try:
+                        kraus_op += coeff * sp.csr_array((basis(q+n-k) @ basis(q).T))
+                        # except:
+                        #     raise ValueError(f"Basis {q+n-k} is not possible for N={N}")
+            # if flag:
+            kraus_ops.append(kraus_op)
+
+    return kraus_ops
+                
+            
+
 @lru_cache(maxsize=100)
 def depolarizing_operators(depolarizing_probability, N, bias = (1/3, 1/3, 1/3)):
     ops = []
