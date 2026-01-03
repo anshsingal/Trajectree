@@ -148,12 +148,12 @@ class trajectory_evaluator():
         return trajectories[selected_trajectory_index]
 
 
-    def query_trajectree(self, psi, kraus_MPOs, error_tolerance, cache = True, selected_trajectory_index = None, normalize = True):
+    def query_trajectree(self, psi, kraus_MPOs, error_tolerance, selected_trajectory_index = None, normalize = True):
         self.skip_unitary = False
         self.cache_unitary = False
         # print("entering trajectree magnitude:", psi.H @ psi)
         
-        if cache == False:
+        if not self.cache_size:
             trajectories, trajectory_weights = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
             selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
             # psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance)
@@ -213,7 +213,7 @@ class trajectory_evaluator():
             if quantum_channel.formalism == 'kraus':
                 trajectree_indices_list = [[*i, j] for i in trajectree_indices_list for j in range(len(quantum_channel.get_MPOs()))]
         for trajectree_indices in trajectree_indices_list:
-            psi_new_dense = self.perform_simulation(psi, error_tolerance, cache = True, trajectree_indices = trajectree_indices, normalize = False).to_dense()
+            psi_new_dense = self.perform_simulation(psi, error_tolerance, trajectree_indices = trajectree_indices, normalize = False).to_dense()
             dm += psi_new_dense @ psi_new_dense.conj().T
         return dm
 
@@ -226,7 +226,7 @@ class trajectory_evaluator():
 
 
     # NOTE: USE NORMALIZE = TRUE FOR TRAJECTORY SIMULATIONS. USE NORMALIZE = FALSE FOR DENSITY MATRIX CALCULATIONS.
-    def perform_simulation(self, psi, error_tolerance, cache = True, trajectree_indices = None, normalize = True):
+    def perform_simulation(self, psi, error_tolerance, trajectree_indices = None, normalize = True):
         self.traversed_nodes = ()
         self.skip_unitary = False
         self.cache_unitary = False
@@ -238,10 +238,10 @@ class trajectory_evaluator():
                 # print("before kraus ops:")
                 # read_quantum_state(psi, N=3)
                 if not trajectree_indices == None: # If the list of trajectoery indices is provided, we will use that to traverse the trajectree. The random number generators will not be used.
-                    psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, cache, trajectree_indices.pop(0), normalize)
+                    psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, trajectree_indices.pop(0), normalize)
                 else: # In this branch, you actually select the trajectory redomly and perform realistic simulations. 
                     # read_quantum_state(psi, N=3)
-                    psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, cache = cache, normalize = normalize)
+                    psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, normalize = normalize)
                 # print("after kraus ops:")
                 # read_quantum_state(psi, N=3)
 
@@ -249,7 +249,7 @@ class trajectory_evaluator():
                 # print("closed op:", quantum_channel.name)
                 unitary_MPOs = quantum_channel.get_MPOs()
                                 
-                if not cache: # If we aren't aching the trajectories at all, simply apply the unitary MPOs to the state.
+                if not self.cache_size: # If we aren't aching the trajectories at all, simply apply the unitary MPOs to the state.
                     psi = self.apply_unitary_MPOs(psi, unitary_MPOs, error_tolerance)
                     continue
 

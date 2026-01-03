@@ -56,7 +56,7 @@ def create_swapping_simulation(N, num_modes, params, error_tolerance = 1e-10):
     if params["if_analyze_entanglement"]:
         analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"])
 
-    t_eval = trajectory_evaluator(quantum_channels)
+    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size)
 
     return psi, t_eval
 
@@ -74,7 +74,7 @@ def perform_swapping_simulation(psi, t_eval, num_simulations, verbose = False, c
 
     for i in range(num_simulations): 
         start = time.time()
-        psi_iter = copy.deepcopy(t_eval.perform_simulation(psi, error_tolerance, cache = cache, normalize = True))
+        psi_iter = copy.deepcopy(t_eval.perform_simulation(psi, error_tolerance, normalize = True))
 
         # read_quantum_state(psi_iter, N)
         if psi_iter == 0:
