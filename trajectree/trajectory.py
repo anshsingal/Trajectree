@@ -47,7 +47,7 @@ class trajectree_node:
         self.trajectory_indices = trajectory_indices
 
 class trajectory_evaluator():
-    def __init__(self, quantum_channels, cache_size = 2):
+    def __init__(self, quantum_channels, cache_size = 7):
         self.quantum_channels = quantum_channels
         self.kraus_channels = []
         for quantum_channel in self.quantum_channels:
@@ -93,11 +93,13 @@ class trajectory_evaluator():
                 # After this, the trajectory is always normalized.
                 if trajectory_weight < 1e-25:
                     trajectory = None
+                    trajectory_weight = 0
                 else: 
                     trajectory /= np.sqrt(trajectory_weight)
 
             trajectory_weights = np.append(trajectory_weights, trajectory_weight)
             trajectories = np.append(trajectories, trajectory)
+        assert len(np.nonzero(trajectory_weights)[0]) > 0, f"All trajectories have zero weight. The input state had magnitude: {psi.H @ psi}"   
         # print("trajectories:")
         # for i in range(len(trajectories)):
         #     read_quantum_state(trajectories[i], N=3)
@@ -130,6 +132,8 @@ class trajectory_evaluator():
         trajectories, trajectory_weights = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
 
         cached_trajectory_indices = self.cache_trajectree_node(trajectory_weights, trajectories) # cached_trajectory_indices is returned only for debugging. 
+
+        # print("trajectory weights:", trajectory_weights)
 
         if selected_trajectory_index == None:
             try:
@@ -192,6 +196,10 @@ class trajectory_evaluator():
             psi = self.discover_trajectree_node(psi, kraus_MPOs, error_tolerance, normalize, selected_trajectory_index = selected_trajectory_index)
 
         # print("exitting trajectree magnitude:", psi.H @ psi)
+        # if psi == None:
+        #     # raise Exception(f"traversed nodes: {self.traversed_nodes} trajectory_weights: {trajectory_weights} invalid")
+        #     self.graph.show()
+        #     raise Exception(f"Psi is None in query trajectree. traversed nodes: {self.traversed_nodes}")
         return psi
 
     def apply_unitary_MPOs(self, psi, unitary_MPOs, error_tolerance):
@@ -213,6 +221,8 @@ class trajectory_evaluator():
         for kraus_idx in range(len(last_cached_node.trajectories)):
             if last_cached_node.trajectories[kraus_idx] is not None:
                 last_cached_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_cached_node.trajectories[kraus_idx], unitary_MPOs, error_tolerance)
+                if np.real(last_cached_node.trajectories[kraus_idx].H @ last_cached_node.trajectories[kraus_idx]) < 1e-25:
+                    last_cached_node.trajectories[kraus_idx] = None
 
 
     # NOTE: USE NORMALIZE = TRUE FOR TRAJECTORY SIMULATIONS. USE NORMALIZE = FALSE FOR DENSITY MATRIX CALCULATIONS.
@@ -221,9 +231,10 @@ class trajectory_evaluator():
         self.skip_unitary = False
         self.cache_unitary = False
         for quantum_channel in self.quantum_channels:
-            print("operation:", quantum_channel.name, "formalism:", quantum_channel.formalism, "traversed nodes:", self.traversed_nodes)
+            # print("operation:", quantum_channel.name, "formalism:", quantum_channel.formalism, "traversed nodes:", self.traversed_nodes)
             if quantum_channel.formalism == 'kraus':
                 kraus_MPOs = quantum_channel.get_MPOs()
+                # print("kraus op:", quantum_channel.name, "number of kraus ops:", len(kraus_MPOs))
                 # print("before kraus ops:")
                 # read_quantum_state(psi, N=3)
                 if not trajectree_indices == None: # If the list of trajectoery indices is provided, we will use that to traverse the trajectree. The random number generators will not be used.
@@ -235,6 +246,7 @@ class trajectory_evaluator():
                 # read_quantum_state(psi, N=3)
 
             elif quantum_channel.formalism == 'closed' and not self.skip_unitary:
+                # print("closed op:", quantum_channel.name)
                 unitary_MPOs = quantum_channel.get_MPOs()
                                 
                 if not self.cache_size: # If we aren't aching the trajectories at all, simply apply the unitary MPOs to the state.
@@ -253,12 +265,17 @@ class trajectory_evaluator():
                     psi = last_cached_node.trajectories[traj_idx[0][0]]
                 else:
                     psi = self.apply_unitary_MPOs(psi, unitary_MPOs, error_tolerance)
+                    if np.real(psi.H @ psi) < 1e-25:
+                        psi = None
             
             else:
                 # print("unitary skipped:", self.traversed_nodes)
                 pass
-            pass
+            if psi == None:
+                # print("Nothing returned")
+                return 0
+                # raise Exception("Psi is None")
             # read_quantum_state(psi, N=6)
-            print("next operation:")
+            # print("next operation:")
 
         return psi

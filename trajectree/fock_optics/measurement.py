@@ -1,6 +1,6 @@
 from .devices import generalized_mode_mixer, create_BS_MPO, ry
 from ..trajectory import quantum_channel
-from .noise_models import single_mode_bosonic_noise_channels
+from .noise_models import single_mode_bosonic_noise_channels, general_mixed_bs_noise_model
 
 from scipy.linalg import sqrtm
 from scipy import sparse as sp
@@ -90,7 +90,7 @@ def generate_sqrt_POVM_MPO(sites, outcome, total_sites, efficiency, N, pnr = Fal
     return sqrt_POVM_MPOs
 
 
-def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_counts_gain,  error_tolerance, beamsplitters = [[2,6],[3,7]], measurements = {0:(2,7), 1:(3,6)}, pnr = False, det_outcome = 1, use_trajectory = False, return_MPOs = False, compress = True, contract = True):
+def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_counts,  error_tolerance, beamsplitters = [[2,6],[3,7]], measurements = {0:(2,7), 1:(3,6)}, pnr = False, det_outcome = 1, use_trajectory = False, return_MPOs = False, compress = True, contract = True):
 
     """Perform Bell state measrement or return the MPOs used in the measurement.
     Args:
@@ -130,19 +130,29 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_coun
             quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "beam splitter") for BSM_MPO in returned_MPOs]
             # # Debugging:
             # return quantum_channel_list
-            damping_kraus_ops_0 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[0], N = N)
-            damping_kraus_ops_1 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[1], N = N)
-            two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in damping_kraus_ops_0 for op2 in damping_kraus_ops_0]
-            two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in damping_kraus_ops_1 for op2 in damping_kraus_ops_1]
-            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops_0), name = "detector inefficiency")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
-            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops_1), name = "detector inefficiency")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            # damping_kraus_ops_0 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[0], N = N)
+            # damping_kraus_ops_1 = single_mode_bosonic_noise_channels(noise_parameter = 1-efficiencies[1], N = N)
+            # two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in damping_kraus_ops_0 for op2 in damping_kraus_ops_0]
+            # two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in damping_kraus_ops_1 for op2 in damping_kraus_ops_1]
+            # quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops_0), name = "detector inefficiency")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            # quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops_1), name = "detector inefficiency")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
 
-            amplification_kraus_ops_0 = single_mode_bosonic_noise_channels(noise_parameter = dark_counts_gain[0], N = N)
-            amplification_kraus_ops_1 = single_mode_bosonic_noise_channels(noise_parameter = dark_counts_gain[1], N = N)
-            two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in amplification_kraus_ops_0 for op2 in amplification_kraus_ops_0]
-            two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in amplification_kraus_ops_1 for op2 in amplification_kraus_ops_1]
-            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops_0), name = "dark counts")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
-            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops_1), name = "dark counts")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            # amplification_kraus_ops_0 = single_mode_bosonic_noise_channels(noise_parameter = dark_counts_gain[0], N = N)
+            # amplification_kraus_ops_1 = single_mode_bosonic_noise_channels(noise_parameter = dark_counts_gain[1], N = N)
+            # two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in amplification_kraus_ops_0 for op2 in amplification_kraus_ops_0]
+            # two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in amplification_kraus_ops_1 for op2 in amplification_kraus_ops_1]
+            # quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), two_mode_kraus_ops_0), name = "dark counts")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            # quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), two_mode_kraus_ops_1), name = "dark counts")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+
+            damping_and_loss_channel0 = general_mixed_bs_noise_model(dark_count_rate = dark_counts[0], eta = efficiencies[0], N = N)
+            damping_and_loss_channel1 = general_mixed_bs_noise_model(dark_count_rate = dark_counts[1], eta = efficiencies[1], N = N)
+            # two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in damping_and_loss_channel0 for op2 in damping_and_loss_channel0]
+            # two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in damping_and_loss_channel1 for op2 in damping_and_loss_channel1]
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,), damping_and_loss_channel0), name = "BSM detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((3,), damping_and_loss_channel0), name = "BSM detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,), damping_and_loss_channel1), name = "BSM detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+            quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((7,), damping_and_loss_channel1), name = "BSM detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+
 
             BSM_POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=1, N=N, pnr = pnr)
             BSM_POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
@@ -169,7 +179,7 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_coun
 
 
 
-def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, rotations = {"signal":(4,5), "idler":(0,1)}, measurements = {1:(0,4), 0:(1,5)}, pnr = False, det_outcome = 1, return_MPOs = False, compress = True, contract = True, draw = False):
+def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, dark_counts = [1e-5,3e-5], rotations = {"signal":(4,5), "idler":(0,1)}, measurements = {1:(0,4), 0:(1,5)}, pnr = False, det_outcome = 1, return_MPOs = False, return_quantum_channel = False, compress = True, contract = True, draw = False):
     # idler_angles = [0]
     # angles = [np.pi/4]
 
@@ -198,7 +208,7 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
         
         enforce_1d_like(rotator_node_1, site_tags=site_tags, inplace=True)
         rotator_node_1.add_tag("L5")
-        if not return_MPOs: # If the user wants the MPOs, we don't need to apply the rotator to the state.
+        if not return_MPOs and not return_quantum_channel: # If the user wants the MPOs, we don't need to apply the rotator to the state.
             idler_rotated_psi = tensor_network_apply_op_vec(rotator_node_1, psi, compress=compress, contract = contract, cutoff = error_tolerance)
 
 
@@ -218,7 +228,32 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
             if return_MPOs:
                 meas_ops = [rotator_node_1, rotator_node_2] + meas_ops # Collect all the MPOs in a list and return them
                 return meas_ops
-        
+
+            if return_quantum_channel:
+                quantum_channel_list = []
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = rotator_node_1, name = "Idler Rotator"))
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = rotator_node_2, name = "Signal Rotator"))
+
+                damping_and_loss_channel0 = general_mixed_bs_noise_model(dark_count_rate = dark_counts[0], eta = efficiency, N = N)
+                damping_and_loss_channel1 = general_mixed_bs_noise_model(dark_count_rate = dark_counts[1], eta = efficiency, N = N)
+                # two_mode_kraus_ops_0 = [sp.kron(op1, op2) for op1 in damping_and_loss_channel0 for op2 in damping_and_loss_channel0]
+                # two_mode_kraus_ops_1 = [sp.kron(op1, op2) for op1 in damping_and_loss_channel1 for op2 in damping_and_loss_channel1]
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((rotations["idler"][0],), damping_and_loss_channel0), name = "PA detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((rotations["idler"][1],), damping_and_loss_channel0), name = "PA detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((rotations["signal"][0],), damping_and_loss_channel1), name = "PA detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((rotations["signal"][1],), damping_and_loss_channel1), name = "PA detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
+
+                
+                POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=1, N=N, pnr = pnr)
+                POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
+
+                det_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, name = "Det POVM") for DET_MPO in POVM_1_OPs]
+                quantum_channel_list.extend(det_quantum_channels)
+    
+
+                return quantum_channel_list
+
+
             # Rotate and measure:
             rotator_node_2.add_tag("L5")
             rho_rotated = tensor_network_apply_op_vec(rotator_node_2, idler_rotated_psi, compress=compress, contract = contract, cutoff = error_tolerance)
