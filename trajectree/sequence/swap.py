@@ -48,7 +48,7 @@ def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance
     psi = extend_MPS(psi)
     return psi
 
-def create_swapping_simulation(N, num_modes, params, error_tolerance = 1e-10):
+def create_swapping_simulation(N, num_modes, params, cache_size, error_tolerance = 1e-10):
     psi = create_swapping_initial_state(num_modes, N, params["chi"], error_tolerance)
 
     quantum_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, [params["BSM_det_loss_1"], params["BSM_det_loss_2"]], [params["BSM_dark_counts_1"], params["BSM_dark_counts_2"]], params["BSM_meas"], params["channel_loss"], error_tolerance)
@@ -61,7 +61,7 @@ def create_swapping_simulation(N, num_modes, params, error_tolerance = 1e-10):
     return psi, t_eval
 
 
-def perform_swapping_simulation(psi, t_eval, num_simulations, verbose = False, cache = True, N = None, calc_fidelity = False, error_tolerance = 1e-10):
+def perform_swapping_simulation(psi, t_eval, num_simulations, verbose = False, N = None, calc_fidelity = False, error_tolerance = 1e-10):
     # print("initial state:")
     # read_quantum_state(psi, N)
 
@@ -88,7 +88,9 @@ def perform_swapping_simulation(psi, t_eval, num_simulations, verbose = False, c
     
         time_taken = time.time() - start
         if verbose:
-            print("iteration", i, ":", time_taken)
+            # print("iteration", i, ":", time_taken)
+            if i in [x * num_simulations//10 for x in range(1, 11)]:
+                print(f"Completed {i} / {num_simulations} simulations.")
         times.append(time_taken)
 
     # print("completed set", "cache_hits:", t_eval.cache_hit, "cache_partial_hits:", t_eval.cache_partial_hit, "cache_misses:", t_eval.cache_miss,  "time taken:", time_taken)

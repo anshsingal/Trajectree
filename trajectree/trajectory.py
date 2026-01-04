@@ -153,7 +153,7 @@ class trajectory_evaluator():
         self.cache_unitary = False
         # print("entering trajectree magnitude:", psi.H @ psi)
         
-        if not self.cache_size:
+        if self.cache_size == 0:
             trajectories, trajectory_weights = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
             selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
             # psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance)
@@ -249,7 +249,7 @@ class trajectory_evaluator():
                 # print("closed op:", quantum_channel.name)
                 unitary_MPOs = quantum_channel.get_MPOs()
                                 
-                if not self.cache_size: # If we aren't aching the trajectories at all, simply apply the unitary MPOs to the state.
+                if self.cache_size == 0: # If we aren't aching the trajectories at all, simply apply the unitary MPOs to the state.
                     psi = self.apply_unitary_MPOs(psi, unitary_MPOs, error_tolerance)
                     continue
 

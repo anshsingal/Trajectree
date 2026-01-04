@@ -179,7 +179,7 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_coun
 
 
 
-def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, dark_counts = [1e-5,3e-5], rotations = {"signal":(4,5), "idler":(0,1)}, measurements = {1:(0,4), 0:(1,5)}, pnr = False, det_outcome = 1, return_MPOs = False, return_quantum_channel = False, compress = True, contract = True, draw = False):
+def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, dark_counts = [3e-5,3e-5], rotations = {"signal":(4,5), "idler":(0,1)}, measurements = {1:(0,4), 0:(1,5)}, pnr = False, det_outcome = 1, return_MPOs = False, return_quantum_channel = False, compress = True, contract = True, draw = False):
     # idler_angles = [0]
     # angles = [np.pi/4]
 

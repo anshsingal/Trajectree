@@ -102,7 +102,7 @@ def general_mixed_bs_noise_model(dark_count_rate, eta, N):
     theta = np.arcsin(np.sqrt(eta))
 
     for n in range(N):
-        bath_state = np.sqrt(np.cosh(r)**2 * np.tanh(r)**(2*n)) 
+        bath_state = np.sqrt(np.cosh(r)**(-2) * np.tanh(r)**(2*n)) 
         for k in range(N):
             kraus_op = 0
             # flag = False
@@ -111,7 +111,7 @@ def general_mixed_bs_noise_model(dark_count_rate, eta, N):
                     # flag = True
                     coeff = 0
                     for r_2 in range(n+1):
-                        coeff += bath_state * np.sqrt(_nck(q, q+n-(k+r_2)) * _nck(n, r_2)) * (1j)**(n-r_2) * np.cos(theta)**(k+2*r_2-n) * np.sin(theta)**(q+2*n - k - 2*r_2)
+                        coeff += bath_state * np.sqrt(_nck(q, q+n-(k+r_2)) * _nck(n, r_2)) * (-1)**(n-r_2) * np.cos(theta)**(k+2*r_2-n) * np.sin(theta)**(q+2*n - k - 2*r_2)
                         # try:
                         kraus_op += coeff * sp.csr_array((basis(q+n-k) @ basis(q).T))
                         # except:
