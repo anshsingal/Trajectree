@@ -10,7 +10,7 @@ import time
 import numpy as np
 import copy
 
-def generate_swapping_circuit(N, num_modes, site_tags, bsm_det_effs, bsm_dark_counts_gain, bsm_measurements,  channel_loss, error_tolerance):
+def generate_swapping_circuit(N, num_modes, site_tags, bsm_det_effs, bsm_dark_counts_gain, bsm_measurements, channel_loss, depolarizing_error = False, damping_error = True,  error_tolerance=1e-10):
     quantum_channel_list = []
 
     # Amplitude damping due to fibers
@@ -28,13 +28,13 @@ def generate_swapping_circuit(N, num_modes, site_tags, bsm_det_effs, bsm_dark_co
     # BSM_MPOs = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, error_tolerance, measurements = bsm_measurements, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
     # BSM_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "BSM") for BSM_MPO in BSM_MPOs]
     
-    BSM_quantum_channels = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, bsm_dark_counts_gain, error_tolerance, measurements = bsm_measurements, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
+    BSM_quantum_channels = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, bsm_dark_counts_gain, error_tolerance, measurements = bsm_measurements, depolarizing_error = depolarizing_error, damping_error = damping_error, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
     quantum_channel_list.extend(BSM_quantum_channels)
 
     return quantum_channel_list
 
-def analyze_entanglement(quantum_channel_list, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles):
-    PA_quantum_channels = rotate_and_measure(None, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, return_quantum_channel = True)
+def analyze_entanglement(quantum_channel_list, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, depolarizing_error = False, damping_error = True):
+    PA_quantum_channels = rotate_and_measure(None, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, depolarizing_error = depolarizing_error, damping_error = damping_error, return_quantum_channel = True)
     quantum_channel_list.extend(PA_quantum_channels)
 
 
@@ -51,10 +51,10 @@ def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance
 def create_swapping_simulation(N, num_modes, params, cache_size, error_tolerance = 1e-10):
     psi = create_swapping_initial_state(num_modes, N, params["chi"], error_tolerance)
 
-    quantum_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, [params["BSM_det_loss_1"], params["BSM_det_loss_2"]], [params["BSM_dark_counts_1"], params["BSM_dark_counts_2"]], params["BSM_meas"], params["channel_loss"], error_tolerance)
+    quantum_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, [params["BSM_det_loss_1"], params["BSM_det_loss_2"]], [params["BSM_dark_counts_1"], params["BSM_dark_counts_2"]], params["BSM_meas"], params["channel_loss"], depolarizing_error = params["depolarizing_error"], damping_error = params["damping_error"], error_tolerance = error_tolerance)
 
     if params["if_analyze_entanglement"]:
-        analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"])
+        analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"], depolarizing_error = params["depolarizing_error"], damping_error = params["damping_error"])
 
     t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size)
 
@@ -71,6 +71,7 @@ def perform_swapping_simulation(psi, t_eval, num_simulations, verbose = False, N
     fidelities = []
     probabilities = []
     times = []
+    progress = [x * num_simulations//10 for x in range(1, 11)]
 
     for i in range(num_simulations): 
         start = time.time()
@@ -88,9 +89,8 @@ def perform_swapping_simulation(psi, t_eval, num_simulations, verbose = False, N
     
         time_taken = time.time() - start
         if verbose:
-            # print("iteration", i, ":", time_taken)
-            if i in [x * num_simulations//10 for x in range(1, 11)]:
-                print(f"Completed {i} / {num_simulations} simulations.")
+            if i in progress:
+                print(f"Completed {progress.index(i)+1}0% of simulations")
         times.append(time_taken)
 
     # print("completed set", "cache_hits:", t_eval.cache_hit, "cache_partial_hits:", t_eval.cache_partial_hit, "cache_misses:", t_eval.cache_miss,  "time taken:", time_taken)
