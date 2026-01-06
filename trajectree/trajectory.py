@@ -3,7 +3,7 @@ from quimb.tensor import MatrixProductOperator as mpo #type: ignore
 from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
 from .fock_optics.outputs import read_quantum_state
 from treelib import Tree
-
+import heapq
 
 class quantum_channel:
     def __init__(self, N, num_modes, formalism, kraus_ops_tuple = None, unitary_MPOs = None, name = "quantum_channel"):
@@ -45,9 +45,13 @@ class trajectree_node:
         self.weights = weights
         self.trajectories = trajectories
         self.trajectory_indices = trajectory_indices
+        self.accesses = 1
+    
+    def __lt__(self, other):
+        return self.accesses < other.accesses
 
 class trajectory_evaluator():
-    def __init__(self, quantum_channels, cache_size = 7):
+    def __init__(self, quantum_channels, cache_size = 7, max_cache_nodes = -1):
         self.quantum_channels = quantum_channels
         self.kraus_channels = []
         for quantum_channel in self.quantum_channels:
@@ -57,6 +61,8 @@ class trajectory_evaluator():
         self.trajectree = [{} for i in range(len(self.kraus_channels)+1)] # +1 because you also cache the end of the simulation so you prevent doing the final unitary operations multiple times. 
         self.traversed_nodes = ()
         self.cache_size = cache_size
+        self.cache_heap = []
+        self.max_cache_nodes = max_cache_nodes
 
         # Visualizing the Trajectree:
         self.graph = Tree()
@@ -124,6 +130,9 @@ class trajectory_evaluator():
 
         self.last_cached_node = new_node
 
+        if len(self.cache_heap) < self.max_cache_nodes or self.max_cache_nodes == -1:
+            heapq.heappush(self.cache_heap, new_node)
+
         return cached_trajectory_indices
 
 
@@ -185,6 +194,16 @@ class trajectory_evaluator():
                     # After this, the trajectory is always normalized. 
                     psi /= np.sqrt(node.weights[selected_trajectory_index])
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
+
+            # Here, we check if the node needs to be cached or not. 
+            node.accesses += 1
+            if len(node.trajectory_indices) == 0: # If the node has been discovered but not cached
+                if node.accesses > self.cache_heap[0].accesses: # the new node has been accesses more often than the top of the heap, so, we can replace the top of the heap with the new node.
+                    old_node = heapq.heapreplace()(self.cache_heap, node)
+                    del old_node.trajectories
+                    old_node.trajectories = [] 
+                    old_node.trajectory_indices = []
+            heapq.heapify(self.cache_heap)
 
 
         else: # If the node has not been discovered, we'll have to find all weights and cache the results.

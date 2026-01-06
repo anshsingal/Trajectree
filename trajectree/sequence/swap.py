@@ -56,7 +56,7 @@ def create_swapping_simulation(N, num_modes, params, cache_size, error_tolerance
     if params["if_analyze_entanglement"]:
         analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"], depolarizing_error = params["depolarizing_error"], damping_error = params["damping_error"])
 
-    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size)
+    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size, max_cache_nodes = params["max_cache_nodes"])
 
     return psi, t_eval
 
