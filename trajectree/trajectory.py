@@ -4,6 +4,12 @@ from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignor
 from .fock_optics.outputs import read_quantum_state
 from treelib import Tree
 import heapq
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+f_handler = logging.FileHandler('log.log')
+logger.addHandler(f_handler)
+
 
 class quantum_channel:
     def __init__(self, N, num_modes, formalism, kraus_ops_tuple = None, unitary_MPOs = None, name = "quantum_channel"):
@@ -44,7 +50,7 @@ class trajectree_node:
     def __init__(self, weights, trajectories, trajectory_indices):
         self.weights = weights
         self.trajectories = trajectories
-        self.trajectory_indices = trajectory_indices
+        self.trajectory_indices = np.array(trajectory_indices)
         self.accesses = 1
     
     def __lt__(self, other):
@@ -118,7 +124,13 @@ class trajectory_evaluator():
 
         # print("trajectory_weights", trajectory_weights)
 
-        cached_trajectory_indices = sorted_indices[-self.cache_size:]
+        if len(self.cache_heap) < self.max_cache_nodes or self.max_cache_nodes == -1:
+            push_node = True
+            cached_trajectory_indices = sorted_indices[-self.cache_size:]
+        else:
+            push_node = False
+            cached_trajectory_indices = []
+
         cached_trajectories = np.array(trajectories)[cached_trajectory_indices]
 
         new_node = trajectree_node(trajectory_weights, cached_trajectories, cached_trajectory_indices)
@@ -130,7 +142,7 @@ class trajectory_evaluator():
 
         self.last_cached_node = new_node
 
-        if len(self.cache_heap) < self.max_cache_nodes or self.max_cache_nodes == -1:
+        if push_node:
             heapq.heappush(self.cache_heap, new_node)
 
         return cached_trajectory_indices
@@ -147,6 +159,7 @@ class trajectory_evaluator():
         if selected_trajectory_index == None:
             try:
                 selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
+                logger.info("selected index while discovering was: %d", selected_trajectory_index)
             except:
                 self.graph.show()
                 raise Exception(f"traversed nodes: {self.traversed_nodes} trajectory_weights: {trajectory_weights} invalid")
@@ -165,6 +178,7 @@ class trajectory_evaluator():
         if self.cache_size == 0:
             trajectories, trajectory_weights = self.apply_kraus(psi, kraus_MPOs, error_tolerance, normalize)
             selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
+            logger.info("selected index while not caching was: %d", selected_trajectory_index)
             # psi = tensor_network_apply_op_vec(self.kraus_channels[len(self.traversed_nodes)].get_MPOs()[selected_trajectory_index], psi, compress=True, contract = True, cutoff = error_tolerance)
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
             return trajectories[selected_trajectory_index]
@@ -175,7 +189,7 @@ class trajectory_evaluator():
             if selected_trajectory_index == None:
                 # print("cached weights:", node.weights, "at:", self.traversed_nodes)
                 selected_trajectory_index = np.random.choice(a = len(node.weights), p = node.weights/sum(node.weights)) # The cached nodes have all the weights, but not all the trajectories cache. So, we can select
-                                                                                                  # what trajecory our traversal takes and later see if the actual trajectory has been cached or needs to be retrieved. 
+                logger.info("selected index while discovered node found was: %d", selected_trajectory_index)                      # what trajecory our traversal takes and later see if the actual trajectory has been cached or needs to be retrieved. 
                 # print("cached weights:", node.weights, "at:", self.traversed_nodes, "selected trajectory:", selected_trajectory_index)
             self.cache_unitary = False # If the node has been found, we do not cache the unitary. The unitary is either already cached or we don't need to cache it at all.
 
@@ -199,10 +213,11 @@ class trajectory_evaluator():
             node.accesses += 1
             if len(node.trajectory_indices) == 0: # If the node has been discovered but not cached
                 if node.accesses > self.cache_heap[0].accesses: # the new node has been accesses more often than the top of the heap, so, we can replace the top of the heap with the new node.
-                    old_node = heapq.heapreplace()(self.cache_heap, node)
+                    # print("in here!!!")
+                    old_node = heapq.heapreplace(self.cache_heap, node)
                     del old_node.trajectories
                     old_node.trajectories = [] 
-                    old_node.trajectory_indices = []
+                    old_node.trajectory_indices = np.array([])
             heapq.heapify(self.cache_heap)
 
 
