@@ -3,6 +3,7 @@ from quimb.tensor import MatrixProductOperator as mpo #type: ignore
 from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
 from .fock_optics.outputs import read_quantum_state
 from treelib import Tree
+import time
 
 
 class quantum_channel:
@@ -66,9 +67,16 @@ class trajectory_evaluator():
         self.cache_hit = 0
         self.cache_miss = 0
         self.cache_partial_hit = 0
+        self.discovered_node_time = 0
+        self.new_node_time = 0
+        self.kraus_op_time = 0
+        self.unitary_op_time = 0
+        self.apply_kraus_time = 0
+
 
 
     def apply_kraus(self, psi, kraus_MPOs, error_tolerance, normalize = True):
+        apply_kraus_time = time.time()
         trajectory_weights = np.array([])
         trajectories = np.array([])
 
@@ -103,7 +111,7 @@ class trajectory_evaluator():
         # print("trajectories:")
         # for i in range(len(trajectories)):
         #     read_quantum_state(trajectories[i], N=3)
-
+        self.apply_kraus_time += time.time() - apply_kraus_time
         return trajectories, trajectory_weights
 
 
@@ -190,10 +198,12 @@ class trajectory_evaluator():
         else: # If the node has not been discovered, we'll have to find all weights and cache the results.
             # print("exploring new node at:", self.traversed_nodes)
             # read_quantum_state(psi, N=3) 
+            new_node_time = time.time()
             self.skip_unitary = False
             self.cache_unitary = True
             self.cache_miss += 1
             psi = self.discover_trajectree_node(psi, kraus_MPOs, error_tolerance, normalize, selected_trajectory_index = selected_trajectory_index)
+            self.new_node_time += time.time() - new_node_time
 
         # print("exitting trajectree magnitude:", psi.H @ psi)
         # if psi == None:
@@ -233,6 +243,7 @@ class trajectory_evaluator():
         for quantum_channel in self.quantum_channels:
             # print("operation:", quantum_channel.name, "formalism:", quantum_channel.formalism, "traversed nodes:", self.traversed_nodes)
             if quantum_channel.formalism == 'kraus':
+                kraus_op_time = time.time()
                 kraus_MPOs = quantum_channel.get_MPOs()
                 # print("kraus op:", quantum_channel.name, "number of kraus ops:", len(kraus_MPOs))
                 # print("before kraus ops:")
@@ -244,8 +255,10 @@ class trajectory_evaluator():
                     psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, normalize = normalize)
                 # print("after kraus ops:")
                 # read_quantum_state(psi, N=3)
+                self.kraus_op_time += time.time() - kraus_op_time
 
             elif quantum_channel.formalism == 'closed' and not self.skip_unitary:
+                unitary_op_time = time.time()
                 # print("closed op:", quantum_channel.name)
                 unitary_MPOs = quantum_channel.get_MPOs()
                                 
@@ -267,6 +280,7 @@ class trajectory_evaluator():
                     psi = self.apply_unitary_MPOs(psi, unitary_MPOs, error_tolerance)
                     if np.real(psi.H @ psi) < 1e-25:
                         psi = None
+                self.unitary_op_time += time.time() - unitary_op_time
             
             else:
                 # print("unitary skipped:", self.traversed_nodes)
