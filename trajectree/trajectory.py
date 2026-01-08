@@ -72,7 +72,7 @@ class trajectory_evaluator():
 
         # Visualizing the Trajectree:
         self.graph = Tree()
-        self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes))
+        # self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes))
         # self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes))  # root node
 
         # for debugging only:
@@ -129,6 +129,11 @@ class trajectory_evaluator():
         # cached_trajectory_indices = self.cache_trajectree_node(trajectory_weights, trajectories) # cached_trajectory_indices is returned only for debugging. 
         new_node = trajectree_node(trajectory_weights, trajectories, np.arange(len(trajectory_weights)))
         self.trajectree[len(self.traversed_nodes)][self.traversed_nodes] = new_node
+
+        if len(self.traversed_nodes) == 0:
+            self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes))  # root node
+        else:
+            self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes), parent = str(self.traversed_nodes[:-1]))
 
         if selected_trajectory_index == None:
             try:
@@ -240,7 +245,7 @@ class trajectory_evaluator():
             last_discovered_node.trajectories = np.array([])
             last_discovered_node.trajectory_indices = np.array([])
 
-        self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes), parent = str(self.traversed_nodes[:-1]))
+        # self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes), parent = str(self.traversed_nodes[:-1]))
 
     # NOTE: USE NORMALIZE = TRUE FOR TRAJECTORY SIMULATIONS. USE NORMALIZE = FALSE FOR DENSITY MATRIX CALCULATIONS.
     def perform_simulation(self, psi, error_tolerance, trajectree_indices = None, normalize = True):
