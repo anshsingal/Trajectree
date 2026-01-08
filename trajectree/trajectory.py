@@ -5,6 +5,7 @@ from .fock_optics.outputs import read_quantum_state
 from treelib import Tree
 import heapq
 import logging
+import time
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 f_handler = logging.FileHandler('log.log')
@@ -79,9 +80,15 @@ class trajectory_evaluator():
         # self.cache_hit = 0
         # self.cache_miss = 0
         # self.cache_partial_hit = 0
+        self.discovered_node_time = 0
+        self.new_node_time = 0
+        self.kraus_op_time = 0
+        self.unitary_op_time = 0
+        self.apply_kraus_time = 0
 
 
     def apply_kraus(self, psi, kraus_MPOs, error_tolerance, normalize = True):
+        apply_kraus_time = time.time()
         trajectory_weights = np.array([])
         trajectories = np.array([])
 
@@ -116,7 +123,7 @@ class trajectory_evaluator():
         # print("trajectories:")
         # for i in range(len(trajectories)):
         #     read_quantum_state(trajectories[i], N=3)
-
+        self.apply_kraus_time += time.time() - apply_kraus_time
         return trajectories, trajectory_weights
 
 
@@ -159,6 +166,7 @@ class trajectory_evaluator():
 
         # Check if the node has been discovered previously.
         if self.traversed_nodes in self.trajectree[len(self.traversed_nodes)]: 
+            discovered_node_time = time.time()
             self.new_node_discovered = False # If the node has been found, we do not cache the unitary. The unitary is either already cached or we don't need to cache it at all.
 
             node = self.trajectree[len(self.traversed_nodes)][self.traversed_nodes] # If found, index that node into the node object to call the probabilities and trajectories cached inside it.
@@ -177,8 +185,9 @@ class trajectory_evaluator():
                 if normalize:
                     # After this, the trajectory is always normalized. 
                     psi /= np.sqrt(node.weights[selected_trajectory_index])
-                if node in self.cache_heap:
-                    node.trajectories.append(psi)
+                if node in self.cache_heap and len(node.trajectory_indices) < self.cache_size:
+                    node.trajectories = np.append(node.trajectories, psi)
+                    # node.trajectories.append(psi)
                     node.trajectory_indices = np.append(node.trajectory_indices, selected_trajectory_index)
                 # self.cache_partial_hit += 1
 
@@ -194,13 +203,16 @@ class trajectory_evaluator():
                     old_node.trajectories = [] 
                     old_node.trajectory_indices = np.array([])
             heapq.heapify(self.cache_heap)
+            self.discovered_node_time += time.time() - discovered_node_time
 
 
         else: # If the node has not been discovered, we'll have to find all weights and cache the results.
+            new_node_time = time.time()
             self.new_node_discovered = True
             self.cached_trajectory_found = False
             # self.cache_miss += 1
             psi = self.discover_trajectree_node(psi, kraus_MPOs, error_tolerance, normalize, selected_trajectory_index = selected_trajectory_index)
+            self.new_node_time += time.time() - new_node_time
         return psi
 
     def apply_unitary_MPOs(self, psi, unitary_MPOs, error_tolerance):
@@ -219,7 +231,8 @@ class trajectory_evaluator():
         return dm
 
     def update_cached_node(self, unitary_MPOs, last_discovered_node, error_tolerance):
-        for kraus_idx in range(len(last_discovered_node.trajectories)):
+        # for kraus_idx in range(len(last_discovered_node.trajectories)):
+        for kraus_idx in range(min(self.cache_size, len(last_discovered_node.trajectories))):
 
             if last_discovered_node.trajectories[kraus_idx] is not None:
                 last_discovered_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_discovered_node.trajectories[kraus_idx], unitary_MPOs, error_tolerance)
@@ -255,6 +268,7 @@ class trajectory_evaluator():
 
         for quantum_channel in self.quantum_channels:
             if quantum_channel.formalism == 'kraus':
+                kraus_op_time = time.time()
                 if self.new_node_discovered: # If we had previously discovered a new node, cache the previously discovered node. 
                     self.cache_trajectree_node()  
                 
@@ -267,8 +281,10 @@ class trajectory_evaluator():
                     psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, trajectree_indices.pop(0), normalize)
                 else: # In this branch, you actually select the trajectory redomly and perform realistic simulations. 
                     psi = self.query_trajectree(psi, kraus_MPOs, error_tolerance, normalize = normalize)
+                self.kraus_op_time += time.time() - kraus_op_time
 
             elif quantum_channel.formalism == 'closed' and not self.cached_trajectory_found:
+                unitary_op_time = time.time()
                 unitary_MPOs = quantum_channel.get_MPOs()
                                 
                 if self.cache_size == 0: # If we aren't aching the trajectories at all, simply apply the unitary MPOs to the state.
@@ -285,6 +301,7 @@ class trajectory_evaluator():
                     psi = self.apply_unitary_MPOs(psi, unitary_MPOs, error_tolerance)
                     if np.real(psi.H @ psi) < 1e-25:
                         psi = None
+                self.unitary_op_time += time.time() - unitary_op_time
 
             if psi == None:
                 return 0
