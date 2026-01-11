@@ -2,7 +2,10 @@ import numpy as np
 from quimb.tensor import MatrixProductOperator as mpo #type: ignore
 from quimb.tensor.tensor_arbgeom import tensor_network_apply_op_vec #type: ignore
 from .fock_optics.outputs import read_quantum_state
-from treelib import Tree
+# from treelib import Tree
+from matplotlib import pyplot as plt
+import networkx as nx
+from networkx.drawing.nx_pydot import graphviz_layout
 import heapq
 import logging
 logger = logging.getLogger(__name__)
@@ -71,7 +74,7 @@ class trajectory_evaluator():
         self.max_cache_nodes = max_cache_nodes
 
         # Visualizing the Trajectree:
-        self.graph = Tree()
+        self.graph = nx.DiGraph()
         # self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes))  # root node
 
         # for debugging only:
@@ -135,10 +138,12 @@ class trajectory_evaluator():
 
         new_node = trajectree_node(trajectory_weights, cached_trajectories, cached_trajectory_indices)
         self.trajectree[len(self.traversed_nodes)][self.traversed_nodes] = new_node
-        if len(self.traversed_nodes) == 0:
-            self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes))  # root node
+        if len(self.traversed_nodes) == 0: # root node
+            # self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes))  # Tree lib implementation 
+            self.graph.add_node(self.traversed_nodes)  # NetworkX implementation
         else:
-            self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes), parent = str(self.traversed_nodes[:-1]))
+            # self.graph.create_node(str(self.traversed_nodes), str(self.traversed_nodes), parent = str(self.traversed_nodes[:-1]))
+            self.graph.add_edge(self.traversed_nodes[:-1], self.traversed_nodes)
 
         self.last_cached_node = new_node
 
@@ -161,7 +166,7 @@ class trajectory_evaluator():
                 selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
                 logger.info("selected index while discovering was: %d", selected_trajectory_index)
             except:
-                self.graph.show()
+                self.show_graph()
                 raise Exception(f"traversed nodes: {self.traversed_nodes} trajectory_weights: {trajectory_weights} invalid")
 
         
@@ -169,7 +174,20 @@ class trajectory_evaluator():
 
         return trajectories[selected_trajectory_index]
 
+    def show_graph(self, use_graphviz = False, node_descriptions = {}):
+        """
+            A typical node description would look like: node_descriptions = {(0,0,1): "Root Node", (0,0,1,2): "Child Node"}
+        """
+        if not use_graphviz: # You can either use the default layouts in NetworkX:  
+            pos = nx.bfs_layout(self.graph, (), align = "vertical", scale = 1) 
+        else: # For a pretty tree like graph, you need to have Graphviz installed:
+            pos = graphviz_layout(self.graph, prog="dot") # You need Graphviz installed for this to work
 
+        plt.figure(figsize=(8, 20))
+        nx.draw(self.graph, pos, with_labels=False, node_color='blue', node_size=50, alpha=0.5)
+        nx.draw_networkx_labels(self.graph, pos, labels=node_descriptions, font_size=12, font_color='black')
+    
+    
     def query_trajectree(self, psi, kraus_MPOs, error_tolerance, selected_trajectory_index = None, normalize = True):
         self.skip_unitary = False
         self.cache_unitary = False
@@ -207,6 +225,11 @@ class trajectory_evaluator():
                 if normalize:
                     # After this, the trajectory is always normalized. 
                     psi /= np.sqrt(node.weights[selected_trajectory_index])
+                if node in self.cache_heap and len(node.trajectory_indices) < self.cache_size:
+                    node.trajectories = np.append(node.trajectories, psi)
+                    # node.trajectories.append(psi)
+                    node.trajectory_indices = np.append(node.trajectory_indices, selected_trajectory_index)
+
             self.traversed_nodes = self.traversed_nodes + (selected_trajectory_index,)
 
             # Here, we check if the node needs to be cached or not. 
