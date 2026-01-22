@@ -15,11 +15,12 @@ logger.addHandler(f_handler)
 
 
 class quantum_channel:
-    def __init__(self, N, num_modes, formalism, kraus_ops_tuple = None, unitary_MPOs = None, name = "quantum_channel"):
+    def __init__(self, N, num_modes, formalism, kraus_ops_tuple = None, unitary_MPOs = None, expectation = False, name = "quantum_channel"):
         self.N = N
         self.name = name
         self.num_modes = num_modes
         self.formalism = formalism
+        self.expectation = expectation
         if self.formalism == 'kraus':
             # Calculate the MPOs of the Kraus operators
             self.kraus_MPOs = quantum_channel.find_quantum_channels_MPOs(kraus_ops_tuple, N, num_modes)
@@ -274,13 +275,27 @@ class trajectory_evaluator():
             dm += psi_new_dense @ psi_new_dense.conj().T
         return dm
 
-    def update_cached_node(self, unitary_MPOs, last_cached_node, error_tolerance):
+    def unitary_cached_trajectories(self, unitary_MPOs, last_cached_node, error_tolerance):
         for kraus_idx in range(len(last_cached_node.trajectories)):
             if last_cached_node.trajectories[kraus_idx] is not None:
                 last_cached_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_cached_node.trajectories[kraus_idx], unitary_MPOs, error_tolerance)
                 if np.real(last_cached_node.trajectories[kraus_idx].H @ last_cached_node.trajectories[kraus_idx]) < 1e-25:
                     last_cached_node.trajectories[kraus_idx] = None
 
+    def nonunitary_cached_trajectories(self, MPOs, last_cached_node, error_tolerance):
+        # for kraus_idx in range(len(last_discovered_node.trajectories)):
+        for kraus_idx in range(len(last_cached_node.trajectories)):
+
+            if last_cached_node.trajectories[kraus_idx] is not None:
+                last_cached_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_cached_node.trajectories[kraus_idx], MPOs, error_tolerance)
+                last_cached_node.weights[kraus_idx] = np.real(last_cached_node.trajectories[kraus_idx].H @ last_cached_node.trajectories[kraus_idx])
+                
+                if last_cached_node.weights[kraus_idx] < 1e-25:
+                    last_cached_node.trajectories[kraus_idx] = None
+                    last_cached_node.weights[kraus_idx] = 0
+
+    def get_trajectree_node(self, address):
+        return self.trajectree[len(address)][address]
 
     # NOTE: USE NORMALIZE = TRUE FOR TRAJECTORY SIMULATIONS. USE NORMALIZE = FALSE FOR DENSITY MATRIX CALCULATIONS.
     def perform_simulation(self, psi, error_tolerance, trajectree_indices = None, normalize = True):
@@ -302,6 +317,7 @@ class trajectory_evaluator():
                 # print("after kraus ops:")
                 # read_quantum_state(psi, N=3)
 
+            # In this case, the weights are not updated since the operations are just unitary. 
             elif quantum_channel.formalism == 'closed' and not self.skip_unitary:
                 # print("closed op:", quantum_channel.name)
                 unitary_MPOs = quantum_channel.get_MPOs()
@@ -313,7 +329,11 @@ class trajectory_evaluator():
                 last_cached_node = self.trajectree[len(self.traversed_nodes)-1][self.traversed_nodes[:-1]]
                 
                 if self.cache_unitary:
-                    self.update_cached_node(unitary_MPOs, last_cached_node, error_tolerance)
+                    if not quantum_channel.expectation:
+                        self.unitary_cached_trajectories(unitary_MPOs, last_cached_node, error_tolerance)
+                    else:
+                        self.nonunitary_cached_trajectories(unitary_MPOs, last_cached_node, error_tolerance)
+
 
                 # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
                 # node to update psi. If not, apply the unitary MPOs to psi.

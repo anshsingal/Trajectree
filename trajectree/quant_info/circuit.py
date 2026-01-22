@@ -78,22 +78,25 @@ class Circuit:
             cargs = circuit_instr.clbits
             gate_name = instr.name
             
-            if gate_name == 'quantum_channel':
-                self.amplitude_damping(noise_parameter=noise_parameter, idx = qargs[0]._index)
-            
-            elif gate_name == 'x':
+            if gate_name == 'x':
                 self.X_gate(qargs[0]._index)
+                self.amplitude_damping(noise_parameter=noise_parameter, idx = qargs[0]._index)
 
             elif gate_name == 'h':
                 self.H_gate(qargs[0]._index)
+                self.amplitude_damping(noise_parameter=noise_parameter, idx = qargs[0]._index)
 
             elif gate_name == 's':
                 self.S_gate(qargs[0]._index)
+                self.amplitude_damping(noise_parameter=noise_parameter, idx = qargs[0]._index)
 
             elif gate_name == 't':
                 self.T_gate(qargs[0]._index)
+                self.amplitude_damping(noise_parameter=noise_parameter, idx = qargs[0]._index)
 
             elif gate_name == 'cx':
                 self.CNOT_gate(qargs[0]._index, qargs[1]._index)
+                self.amplitude_damping(noise_parameter=noise_parameter, idx = qargs[0]._index)
+                self.amplitude_damping(noise_parameter=noise_parameter, idx = qargs[1]._index)
 
         self.create_trajectree()
