@@ -79,9 +79,11 @@ def create_PNR_POVM_OP_Dense(eff, outcome, N, debug = False):
 
 def generate_sqrt_POVM_MPO(sites, outcome, total_sites, efficiency, N, pnr = False, tag = "POVM"):
     if pnr:
-        dense_op = sqrtm(create_PNR_POVM_OP_Dense(efficiency, outcome, N)).astype(np.complex128)
+        # dense_op = sqrtm(create_PNR_POVM_OP_Dense(efficiency, outcome, N)).astype(np.complex128)
+        dense_op = (create_PNR_POVM_OP_Dense(efficiency, outcome, N)).astype(np.complex128)
     else:
-        dense_op = sqrtm(create_threshold_POVM_OP_Dense(efficiency, outcome, N)).astype(np.complex128)
+        # dense_op = sqrtm(create_threshold_POVM_OP_Dense(efficiency, outcome, N)).astype(np.complex128)
+        dense_op = (create_threshold_POVM_OP_Dense(efficiency, outcome, N)).astype(np.complex128)
 
     sqrt_POVM_MPOs = []
     for i in sites:
@@ -147,10 +149,10 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_coun
             BSM_POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=1, N=N, pnr = pnr)
             BSM_POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
 
-            det_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, name = "Det POVM") for DET_MPO in BSM_POVM_1_OPs]
-            quantum_channel_list.extend(det_quantum_channels)
+            expectation_ops = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, expectation = False, name = "Det POVM") for DET_MPO in BSM_POVM_1_OPs]
+            # quantum_channel_list.extend(expectation_ops)
     
-            return quantum_channel_list
+            return quantum_channel_list, expectation_ops 
 
         returned_MPOs.extend(BSM_POVM_1_OPs) # Collect all the MPOs in a list and return them. The operators are ordered as such: 
 
@@ -241,11 +243,11 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
                 POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=1, N=N, pnr = pnr)
                 POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
 
-                det_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, name = "Det POVM") for DET_MPO in POVM_1_OPs]
-                quantum_channel_list.extend(det_quantum_channels)
+                expectation_ops = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, expectation = False, name = "Det POVM") for DET_MPO in POVM_1_OPs]
+                # quantum_channel_list.extend(expectation_ops)
     
 
-                return quantum_channel_list
+                return quantum_channel_list, expectation_ops
 
 
             # Rotate and measure:

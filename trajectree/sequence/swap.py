@@ -28,14 +28,15 @@ def generate_swapping_circuit(N, num_modes, site_tags, bsm_det_effs, bsm_dark_co
     # BSM_MPOs = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, error_tolerance, measurements = bsm_measurements, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
     # BSM_quantum_channels = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "BSM") for BSM_MPO in BSM_MPOs]
     
-    BSM_quantum_channels = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, bsm_dark_counts_gain, error_tolerance, measurements = bsm_measurements, depolarizing_error = depolarizing_error, damping_error = damping_error, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
+    BSM_quantum_channels, expectation_channels = bell_state_measurement(None, N, site_tags, num_modes, bsm_det_effs, bsm_dark_counts_gain, error_tolerance, measurements = bsm_measurements, depolarizing_error = depolarizing_error, damping_error = damping_error, pnr = False, use_trajectory = True, return_MPOs = True, compress=True, contract=True)
     quantum_channel_list.extend(BSM_quantum_channels)
 
-    return quantum_channel_list
+    return quantum_channel_list, expectation_channels
 
-def analyze_entanglement(quantum_channel_list, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, depolarizing_error = False, damping_error = True):
-    PA_quantum_channels = rotate_and_measure(None, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, depolarizing_error = depolarizing_error, damping_error = damping_error, return_quantum_channel = True)
+def analyze_entanglement(quantum_channel_list, expectation_channels, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, depolarizing_error = False, damping_error = True):
+    PA_quantum_channels, PA_expectation_channels = rotate_and_measure(None, N, site_tags, num_modes, efficiency, error_tolerance, idler_angles, signal_angles, depolarizing_error = depolarizing_error, damping_error = damping_error, return_quantum_channel = True)
     quantum_channel_list.extend(PA_quantum_channels)
+    expectation_channels.extend(PA_expectation_channels)
 
 
 def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance):
@@ -51,12 +52,14 @@ def create_swapping_initial_state(num_modes, N, mean_photon_num, error_tolerance
 def create_swapping_simulation(N, num_modes, params, cache_size, error_tolerance = 1e-10):
     psi = create_swapping_initial_state(num_modes, N, params["chi"], error_tolerance)
 
-    quantum_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, [params["BSM_det_loss_1"], params["BSM_det_loss_2"]], [params["BSM_dark_counts_1"], params["BSM_dark_counts_2"]], params["BSM_meas"], params["channel_loss"], depolarizing_error = params["depolarizing_error"], damping_error = params["damping_error"], error_tolerance = error_tolerance)
+    quantum_channels, expectation_channels = generate_swapping_circuit(N, num_modes, psi.site_tags, [params["BSM_det_loss_1"], params["BSM_det_loss_2"]], [params["BSM_dark_counts_1"], params["BSM_dark_counts_2"]], params["BSM_meas"], params["channel_loss"], depolarizing_error = params["depolarizing_error"], damping_error = params["damping_error"], error_tolerance = error_tolerance)
 
     if params["if_analyze_entanglement"]:
-        analyze_entanglement(quantum_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"], depolarizing_error = params["depolarizing_error"], damping_error = params["damping_error"])
+        analyze_entanglement(quantum_channels, expectation_channels, N, psi.site_tags, num_modes, params["PA_det_eff"], error_tolerance, params["alpha_list"], params["delta_list"], depolarizing_error = params["depolarizing_error"], damping_error = params["damping_error"])
 
-    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size, max_cache_nodes = params["max_cache_nodes"])
+    # quantum_channels.extend(expectation_channels)
+
+    t_eval = trajectory_evaluator(quantum_channels, cache_size = cache_size, max_cache_nodes = params["max_cache_nodes"], calc_expectation = True, observable_ops = expectation_channels)
 
     return psi, t_eval
 
@@ -75,17 +78,17 @@ def perform_swapping_simulation(psi, t_eval, num_simulations, verbose = False, N
 
     for i in range(num_simulations): 
         start = time.time()
-        psi_iter = copy.deepcopy(t_eval.perform_simulation(psi, error_tolerance, normalize = True))
+        psi_iter = probabilities.append(t_eval.perform_simulation(psi, error_tolerance, normalize = True))
 
-        # read_quantum_state(psi_iter, N)
-        if psi_iter == 0:
-            probabilities.append(0)
-        else:
-            probabilities.append(psi_iter.normalize())
+        # # read_quantum_state(psi_iter, N)
+        # if psi_iter == 0:
+        #     probabilities.append(0)
+        # else:
+        #     probabilities.append(psi_iter.normalize())
         
-        if calc_fidelity:
-            fidelity = np.abs(calc_fidelity_swapping(psi_iter, "psi_minus", N, error_tolerance))
-            fidelities.append(fidelity)
+        # if calc_fidelity:
+        #     fidelity = np.abs(calc_fidelity_swapping(psi_iter, "psi_minus", N, error_tolerance))
+        #     fidelities.append(fidelity)
     
         time_taken = time.time() - start
         if verbose:

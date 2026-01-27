@@ -8,6 +8,7 @@ import networkx as nx
 from networkx.drawing.nx_pydot import graphviz_layout
 import heapq
 import logging
+import copy
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 f_handler = logging.FileHandler('log.log')
@@ -61,7 +62,7 @@ class trajectree_node:
         return self.accesses < other.accesses
 
 class trajectory_evaluator():
-    def __init__(self, quantum_channels, cache_size = 7, max_cache_nodes = -1):
+    def __init__(self, quantum_channels, cache_size = 7, max_cache_nodes = -1, calc_expectation = False, observable_ops = []):
         self.quantum_channels = quantum_channels
         self.kraus_channels = []
         for quantum_channel in self.quantum_channels:
@@ -73,6 +74,10 @@ class trajectory_evaluator():
         self.cache_size = cache_size
         self.cache_heap = []
         self.max_cache_nodes = max_cache_nodes
+
+        self.calc_expectation = calc_expectation
+        self.observable_ops = observable_ops
+
 
         # Visualizing the Trajectree:
         self.graph = nx.DiGraph()
@@ -282,17 +287,17 @@ class trajectory_evaluator():
                 if np.real(last_cached_node.trajectories[kraus_idx].H @ last_cached_node.trajectories[kraus_idx]) < 1e-25:
                     last_cached_node.trajectories[kraus_idx] = None
 
-    def nonunitary_cached_trajectories(self, MPOs, last_cached_node, error_tolerance):
-        # for kraus_idx in range(len(last_discovered_node.trajectories)):
-        for kraus_idx in range(len(last_cached_node.trajectories)):
+    # def nonunitary_cached_trajectories(self, MPOs, last_cached_node, error_tolerance):
+    #     # for kraus_idx in range(len(last_discovered_node.trajectories)):
+    #     for kraus_idx in range(len(last_cached_node.trajectories)):
 
-            if last_cached_node.trajectories[kraus_idx] is not None:
-                last_cached_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_cached_node.trajectories[kraus_idx], MPOs, error_tolerance)
-                last_cached_node.weights[kraus_idx] = np.real(last_cached_node.trajectories[kraus_idx].H @ last_cached_node.trajectories[kraus_idx])
+    #         if last_cached_node.trajectories[kraus_idx] is not None:
+    #             last_cached_node.trajectories[kraus_idx] = self.apply_unitary_MPOs(last_cached_node.trajectories[kraus_idx], MPOs, error_tolerance)
+    #             last_cached_node.weights[kraus_idx] = np.real(last_cached_node.trajectories[kraus_idx].H @ last_cached_node.trajectories[kraus_idx])
                 
-                if last_cached_node.weights[kraus_idx] < 1e-25:
-                    last_cached_node.trajectories[kraus_idx] = None
-                    last_cached_node.weights[kraus_idx] = 0
+    #             if last_cached_node.weights[kraus_idx] < 1e-25:
+    #                 last_cached_node.trajectories[kraus_idx] = None
+    #                 last_cached_node.weights[kraus_idx] = 0
 
     def get_trajectree_node(self, address):
         return self.trajectree[len(address)][address]
@@ -329,10 +334,7 @@ class trajectory_evaluator():
                 last_cached_node = self.trajectree[len(self.traversed_nodes)-1][self.traversed_nodes[:-1]]
                 
                 if self.cache_unitary:
-                    if not quantum_channel.expectation:
-                        self.unitary_cached_trajectories(unitary_MPOs, last_cached_node, error_tolerance)
-                    else:
-                        self.nonunitary_cached_trajectories(unitary_MPOs, last_cached_node, error_tolerance)
+                    self.unitary_cached_trajectories(unitary_MPOs, last_cached_node, error_tolerance)
 
 
                 # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
@@ -354,5 +356,33 @@ class trajectory_evaluator():
                 # raise Exception("Psi is None")
             # read_quantum_state(psi, N=6)
             # print("next operation:")
+
+        if self.calc_expectation:
+            # print("calculating expectation")
+            temp_state = copy.deepcopy(psi)
+            # print(temp_state.to_dense())
+            if not self.skip_unitary:
+                for quantum_channel in self.observable_ops:
+                    observable_MPO = quantum_channel.get_MPOs()
+
+                    last_cached_node = self.get_trajectree_node(self.traversed_nodes[:-1])
+
+                    if self.cache_unitary:
+                        self.unitary_cached_trajectories(observable_MPO, last_cached_node, error_tolerance)
+
+                    # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
+                    # node to update psi. If not, apply the unitary MPOs to psi.
+                    traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])    
+                    if traj_idx[0].size > 0:
+                        psi = last_cached_node.trajectories[traj_idx[0][0]]
+                    else:
+                        psi = self.apply_unitary_MPOs(psi, observable_MPO, error_tolerance)
+                        if np.real(psi.H @ psi) < 1e-25:
+                            psi = None
+
+            if psi != None:
+                return temp_state.H @ psi
+            else:
+                return 0
 
         return psi
