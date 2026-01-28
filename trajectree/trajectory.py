@@ -319,6 +319,16 @@ class trajectory_evaluator():
                 if self.calc_magnitude(last_cached_node.trajectories[kraus_idx]) < 1e-25: 
                     last_cached_node.trajectories[kraus_idx] = None
 
+    def expectation_cached_trajectories(self, last_cached_node, temp_trajectories):
+        for kraus_idx in range(len(last_cached_node.trajectories)):
+
+            if last_cached_node.trajectories[kraus_idx] is not None:
+                last_cached_node.trajectories[kraus_idx] = self.calc_inner_product(temp_trajectories[kraus_idx], last_cached_node.trajectories[kraus_idx])
+                # if self.calc_magnitude(last_cached_node.trajectories[kraus_idx]) < 1e-25: 
+                #     last_cached_node.trajectories[kraus_idx] = None
+
+
+
     # def nonunitary_cached_trajectories(self, ops, last_cached_node, error_tolerance):
     #     # for kraus_idx in range(len(last_discovered_node.trajectories)):
     #     for kraus_idx in range(len(last_cached_node.trajectories)):
@@ -390,21 +400,21 @@ class trajectory_evaluator():
             # print("next operation:")
 
         if self.calc_expectation:
-            # print("calculating expectation")
-            temp_state = copy.deepcopy(psi)
-            # print(temp_state.to_dense())
             if not self.skip_unitary:
+            
+                # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
+                # node to update psi. If not, apply the unitary ops to psi.
+                last_cached_node = self.get_trajectree_node(self.traversed_nodes[:-1])
+                traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])    
+
+                temp_trajectories = copy.deepcopy(last_cached_node.trajectories)
+
                 for quantum_channel in self.observable_ops:
                     observable_op = quantum_channel.get_ops()
-
-                    last_cached_node = self.get_trajectree_node(self.traversed_nodes[:-1])
 
                     if self.cache_unitary:
                         self.unitary_cached_trajectories(observable_op, last_cached_node, error_tolerance)
 
-                    # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
-                    # node to update psi. If not, apply the unitary ops to psi.
-                    traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])    
                     if traj_idx[0].size > 0:
                         psi = last_cached_node.trajectories[traj_idx[0][0]]
                     else:
@@ -412,9 +422,11 @@ class trajectory_evaluator():
                         if self.calc_magnitude(psi) < 1e-25:
                             psi = None
 
-            if psi != None:
-                return temp_state.H @ psi
-            else:
-                return 0
+                self.expectation_cached_trajectories(last_cached_node, temp_trajectories)
 
+                return last_cached_node.trajectories[traj_idx[0][0]] 
+                # if psi != None:
+                #     last_cached_node.trajectories[traj_idx[0][0]] = temp_state.H @ psi
+                # else:
+                #     last_cached_node.trajectories[traj_idx[0][0]] = 0
         return psi
