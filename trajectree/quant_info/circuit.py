@@ -161,7 +161,7 @@ class Circuit:
         damping_channels = phase_damping(noise_parameter = noise_parameter)
         self.quantum_channel_list.append(quantum_channel(N = 2, num_modes = self.num_qubits, formalism = "kraus", kraus_ops_tuple = ((idx,), damping_channels), backend = self.backend, name = tag))
     
-    def perform_trajectree_simulation(self, num_simulations, error_tolerance = 1e-10):
+    def perform_trajectree_simulation(self, num_simulations, error_tolerance = 1e-12):
         times = []
         evs = []
         for _ in range(num_simulations): 

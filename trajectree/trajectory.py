@@ -233,7 +233,6 @@ class trajectory_evaluator():
         self.skip_unitary = False
         self.cache_unitary = False
         # print("entering trajectree magnitude:", self.calc_magnitude(psi))
-        
         if self.cache_size == 0:
             trajectories, trajectory_weights = self.apply_kraus(psi, kraus_ops, error_tolerance, normalize)
             selected_trajectory_index = np.random.choice(a = len(trajectory_weights), p = trajectory_weights/sum(trajectory_weights))
@@ -244,11 +243,12 @@ class trajectory_evaluator():
 
         if self.traversed_nodes in self.trajectree[len(self.traversed_nodes)]: # Check if the dictionary at level where the traversal is now, i.e., len(self.traversed_nodes)
                                                                                # has the path that the present traversal has taken. 
+            logger.info(f"selected_trajectory_index: {selected_trajectory_index}")
             node = self.trajectree[len(self.traversed_nodes)][self.traversed_nodes] # If found, index that node into the node object to call the probabilities and trajectories cached inside it.
             if selected_trajectory_index == None:
                 # print("cached weights:", node.weights, "at:", self.traversed_nodes)
                 selected_trajectory_index = np.random.choice(a = len(node.weights), p = node.weights/sum(node.weights)) # The cached nodes have all the weights, but not all the trajectories cache. So, we can select
-                logger.info("selected index while discovered node found was: %d", selected_trajectory_index)                      # what trajecory our traversal takes and later see if the actual trajectory has been cached or needs to be retrieved. 
+                logger.info(f"selected index while discovered node found: {selected_trajectory_index} with prob {node.weights[selected_trajectory_index]}")                      # what trajecory our traversal takes and later see if the actual trajectory has been cached or needs to be retrieved. 
                 # print("cached weights:", node.weights, "at:", self.traversed_nodes, "selected trajectory:", selected_trajectory_index)
             self.cache_unitary = False # If the node has been found, we do not cache the unitary. The unitary is either already cached or we don't need to cache it at all.
 
@@ -256,6 +256,7 @@ class trajectory_evaluator():
                 self.skip_unitary = True # If we're skipping the unitary entirely, it just does not matter whether we cache the unitary or not.
                 self.cache_hit += 1
                 psi = node.trajectories[np.where(node.trajectory_indices == selected_trajectory_index)[0][0]]
+                logger.info(f"selected outcome: {psi}")
             else: 
                 self.skip_unitary = False # If the trajectory has not been cached, we will have to apply the unitary to it.
                 self.cache_partial_hit += 1
