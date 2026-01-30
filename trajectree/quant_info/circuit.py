@@ -161,7 +161,7 @@ class Circuit:
         damping_channels = phase_damping(noise_parameter = noise_parameter)
         self.quantum_channel_list.append(quantum_channel(N = 2, num_modes = self.num_qubits, formalism = "kraus", kraus_ops_tuple = ((idx,), damping_channels), backend = self.backend, name = tag))
     
-    def perform_trajectree_simulation(self, num_simulations, error_tolerance = 1e-12):
+    def perform_trajectree_simulation(self, num_simulations, error_tolerance = 1e-12, verbose = False):
         times = []
         evs = []
         for _ in range(num_simulations): 
@@ -169,12 +169,13 @@ class Circuit:
             evs.append(self.t_eval.perform_simulation(self.psi, error_tolerance, normalize = True))
         
             time_taken = time.time() - start
-            print("time taken:", time_taken)
-            # if verbose:
+            # print("time taken:", time_taken)
+            if verbose:
+                print("time taken:", time_taken)
             #     if i in progress:
             #         print(f"Completed {progress.index(i)+1}0% of simulations")
             times.append(time_taken)
-        print("done with simulations")
+        # print("done with simulations")
         
         return evs, times
 
