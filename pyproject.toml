@@ -20,7 +20,6 @@ classifiers = [
 dependencies=[
   'matplotlib',
   'qutip',
-  'trajectree-quimb'
-  'treelib'
+  'trajectree-quimb',
+  'treelib',
 ]
-

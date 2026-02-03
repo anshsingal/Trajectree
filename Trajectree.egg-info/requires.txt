@@ -1,3 +1,4 @@
 matplotlib
 qutip
 trajectree-quimb
+treelib
