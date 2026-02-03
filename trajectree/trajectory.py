@@ -324,7 +324,9 @@ class trajectory_evaluator():
         for kraus_idx in range(len(last_cached_node.trajectories)):
 
             if last_cached_node.trajectories[kraus_idx] is not None:
-                last_cached_node.trajectories[kraus_idx] = self.calc_inner_product(temp_trajectories[kraus_idx], last_cached_node.trajectories[kraus_idx])
+                ev = self.calc_inner_product(temp_trajectories[kraus_idx], last_cached_node.trajectories[kraus_idx])
+                if ev == None: ev = 0
+                last_cached_node.trajectories[kraus_idx] = ev
                 # if self.calc_magnitude(last_cached_node.trajectories[kraus_idx]) < 1e-25: 
                 #     last_cached_node.trajectories[kraus_idx] = None
 
@@ -401,6 +403,7 @@ class trajectory_evaluator():
             # print("next operation:")
 
         if self.calc_expectation:
+            # print("state before expectation calculation:", psi)
             if not self.skip_unitary:
             
                 # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
@@ -423,11 +426,12 @@ class trajectory_evaluator():
                         if self.calc_magnitude(psi) < 1e-25:
                             psi = None
 
+                # if traj_idx[0].size > 0:
                 self.expectation_cached_trajectories(last_cached_node, temp_trajectories)
-
-                return last_cached_node.trajectories[traj_idx[0][0]] 
+                psi = last_cached_node.trajectories[traj_idx[0][0]] 
                 # if psi != None:
                 #     last_cached_node.trajectories[traj_idx[0][0]] = temp_state.H @ psi
                 # else:
                 #     last_cached_node.trajectories[traj_idx[0][0]] = 0
+        if psi == None: return 0
         return psi

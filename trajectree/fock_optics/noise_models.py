@@ -87,7 +87,7 @@ def general_mixed_bs_noise_model(dark_count_rate, eta, N):
     
     Args:
         dark_count_rate (float): Rate of detector dark counts per second
-        theta (float): The beamsplitter transmissivity.
+        eta (float): The beamsplitter transmissivity.
         N (int): local Hilbert space dimension being considered.
     """
     a = qt.destroy(N).full()
