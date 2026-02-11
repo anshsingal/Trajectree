@@ -129,7 +129,7 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_coun
     if return_MPOs:
         returned_MPOs = [U_BS_H, U_BS_V]
         if use_trajectory:
-            quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "beam splitter") for BSM_MPO in returned_MPOs]
+            quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_op = BSM_MPO, name = "beam splitter") for BSM_MPO in returned_MPOs]
             
             if damping_error:
                 damping_and_loss_channel0 = general_mixed_bs_noise_model(dark_count_rate = dark_counts[0], eta = efficiencies[0], N = N)
@@ -141,22 +141,22 @@ def bell_state_measurement(psi, N, site_tags, num_modes, efficiencies, dark_coun
                 quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,), damping_and_loss_channel1), name = "BSM detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
                 quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((7,), damping_and_loss_channel1), name = "BSM detector")) # The tuples in this list are defined as (sites, kraus_ops). The sites are the sites where the Kraus ops are applied.
 
-            if depolarizing_error:
-                depolarizing_channels = depolarizing_operators(depolarizing_probability = 0.5, N = N)
+            if depolarizing_error != 0:
+                depolarizing_channels = depolarizing_operators(depolarizing_probability = depolarizing_error, N = N)
                 quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((2,3), depolarizing_channels), name = "BSM depol"))
                 quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "kraus", kraus_ops_tuple = ((6,7), depolarizing_channels), name = "BSM depol"))
 
             BSM_POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=1, N=N, pnr = pnr)
             BSM_POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
 
-            expectation_ops = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, expectation = False, name = "Det POVM") for DET_MPO in BSM_POVM_1_OPs]
+            expectation_ops = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_op = DET_MPO, name = "Det POVM") for DET_MPO in BSM_POVM_1_OPs]
             # quantum_channel_list.extend(expectation_ops)
     
             return quantum_channel_list, expectation_ops 
 
         returned_MPOs.extend(BSM_POVM_1_OPs) # Collect all the MPOs in a list and return them. The operators are ordered as such: 
 
-        quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = BSM_MPO, name = "BSM") for BSM_MPO in returned_MPOs]
+        quantum_channel_list = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_op = BSM_MPO, name = "BSM") for BSM_MPO in returned_MPOs]
 
         return quantum_channel_list
 
@@ -222,8 +222,8 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
 
             if return_quantum_channel:
                 quantum_channel_list = []
-                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = rotator_node_1, name = "Idler Rotator"))
-                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = rotator_node_2, name = "Signal Rotator"))
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_op = rotator_node_1, name = "Idler Rotator"))
+                quantum_channel_list.append(quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_op = rotator_node_2, name = "Signal Rotator"))
 
                 if damping_error:
                     damping_and_loss_channel0 = general_mixed_bs_noise_model(dark_count_rate = dark_counts[0], eta = efficiency, N = N)
@@ -243,7 +243,7 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
                 POVM_1_OPs = generate_sqrt_POVM_MPO(sites=measurements[1], outcome = det_outcome, total_sites=num_modes, efficiency=1, N=N, pnr = pnr)
                 POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
 
-                expectation_ops = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_MPOs = DET_MPO, expectation = False, name = "Det POVM") for DET_MPO in POVM_1_OPs]
+                expectation_ops = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_op = DET_MPO, name = "Det POVM") for DET_MPO in POVM_1_OPs]
                 # quantum_channel_list.extend(expectation_ops)
     
 

@@ -411,7 +411,10 @@ class trajectory_evaluator():
                 last_cached_node = self.get_trajectree_node(self.traversed_nodes[:-1])
                 traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])    
 
-                temp_trajectories = copy.deepcopy(last_cached_node.trajectories)
+                if traj_idx[0].size > 0:
+                    temp_trajectories = copy.deepcopy(last_cached_node.trajectories)
+                else:
+                    psi_temp = copy.deepcopy(psi)
 
                 for quantum_channel in self.observable_ops:
                     observable_op = quantum_channel.get_ops()
@@ -426,9 +429,11 @@ class trajectory_evaluator():
                         if self.calc_magnitude(psi) < 1e-25:
                             psi = None
 
-                # if traj_idx[0].size > 0:
-                self.expectation_cached_trajectories(last_cached_node, temp_trajectories)
-                psi = last_cached_node.trajectories[traj_idx[0][0]] 
+                if traj_idx[0].size > 0:
+                    self.expectation_cached_trajectories(last_cached_node, temp_trajectories)
+                    psi = last_cached_node.trajectories[traj_idx[0][0]] 
+                elif psi != None:
+                    psi = self.calc_inner_product(psi_temp, psi)
                 # if psi != None:
                 #     last_cached_node.trajectories[traj_idx[0][0]] = temp_state.H @ psi
                 # else:

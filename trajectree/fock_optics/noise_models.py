@@ -113,7 +113,7 @@ def general_mixed_bs_noise_model(dark_count_rate, eta, N):
                     for r_2 in range(n+1):
                         coeff += bath_state * np.sqrt(_nck(q, q+n-(k+r_2)) * _nck(n, r_2)) * (-1)**(n-r_2) * np.cos(theta)**(k+2*r_2-n) * np.sin(theta)**(q+2*n - k - 2*r_2)
                         # try:
-                        kraus_op += coeff * sp.csr_array((basis(q+n-k) @ basis(q).T))
+                    kraus_op += coeff * sp.csr_array((basis(q+n-k) @ basis(q).T))
                         # except:
                         #     raise ValueError(f"Basis {q+n-k} is not possible for N={N}")
             # if flag:
