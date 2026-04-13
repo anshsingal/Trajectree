@@ -244,7 +244,7 @@ def rotate_and_measure(psi, N, site_tags, num_modes, efficiency, error_tolerance
                 POVM_1_OPs.extend(generate_sqrt_POVM_MPO(sites=measurements[0], outcome = 0, total_sites=num_modes, efficiency=1, N=N, pnr = pnr))
 
                 expectation_ops = [quantum_channel(N = N, num_modes = num_modes, formalism = "closed", unitary_op = DET_MPO, name = "Det POVM") for DET_MPO in POVM_1_OPs]
-                # quantum_channel_list.extend(expectation_ops)
+                quantum_channel_list.extend(expectation_ops)
     
 
                 return quantum_channel_list, expectation_ops

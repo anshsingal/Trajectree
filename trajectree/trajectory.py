@@ -353,6 +353,7 @@ class trajectory_evaluator():
         self.skip_unitary = False
         self.cache_unitary = False
         for quantum_channel in self.quantum_channels:
+            # print("quantum channel:", quantum_channel.name)
             # print("operation:", quantum_channel.name, "formalism:", quantum_channel.formalism, "traversed nodes:", self.traversed_nodes)
             if quantum_channel.formalism == 'kraus':
                 kraus_ops = quantum_channel.get_ops()
@@ -401,19 +402,22 @@ class trajectory_evaluator():
                 # raise Exception("Psi is None")
             # read_quantum_state(psi, N=6)
             # print("next operation:")
+            # read_quantum_state(psi, 2)
 
         if self.calc_expectation:
-            # print("state before expectation calculation:", psi)
-            if not self.skip_unitary:
-            
-                # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
-                # node to update psi. If not, apply the unitary ops to psi.
-                last_cached_node = self.get_trajectree_node(self.traversed_nodes[:-1])
-                traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])    
 
-                if traj_idx[0].size > 0:
-                    temp_trajectories = copy.deepcopy(last_cached_node.trajectories)
-                else:
+            if not self.skip_unitary:
+                unitary_op = quantum_channel.get_ops()
+                                
+                # if self.cache_size == 0: # If we aren't aching the trajectories at all, simply apply the unitary ops to the state.
+                #     psi = self.apply_op(psi, unitary_op, error_tolerance)
+                #     continue
+
+                last_cached_node = self.get_trajectree_node(self.traversed_nodes[:-1])
+                temp_trajectories = copy.deepcopy(last_cached_node.trajectories)
+                
+                traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])
+                if traj_idx[0].size == 0:
                     psi_temp = copy.deepcopy(psi)
 
                 for quantum_channel in self.observable_ops:
@@ -428,15 +432,53 @@ class trajectory_evaluator():
                         psi = self.apply_op(psi, observable_op, error_tolerance)
                         if self.calc_magnitude(psi) < 1e-25:
                             psi = None
+                
+                if self.cache_unitary:
+                    self.expectation_cached_trajectories(last_cached_node, temp_trajectories)
 
                 if traj_idx[0].size > 0:
-                    self.expectation_cached_trajectories(last_cached_node, temp_trajectories)
                     psi = last_cached_node.trajectories[traj_idx[0][0]] 
+                    # print("psi after cached expectation:", psi)
                 elif psi != None:
                     psi = self.calc_inner_product(psi_temp, psi)
-                # if psi != None:
-                #     last_cached_node.trajectories[traj_idx[0][0]] = temp_state.H @ psi
-                # else:
-                #     last_cached_node.trajectories[traj_idx[0][0]] = 0
+                    # print("psi after expectation calculation:", psi)
+
+
+            # if not self.skip_unitary:
+            
+            #     # This is where we are checking if the psi is cached or not. If it is, simply use the last cached node 
+            #     # node to update psi. If not, apply the unitary ops to psi.
+            #     last_cached_node = self.get_trajectree_node(self.traversed_nodes[:-1])
+            #     traj_idx = np.where(last_cached_node.trajectory_indices == self.traversed_nodes[-1])
+
+            #     # print("traj_idx[0]", traj_idx[0])
+
+            #     if traj_idx[0].size > 0:
+            #         temp_trajectories = copy.deepcopy(last_cached_node.trajectories)
+            #     else:
+            #         psi_temp = copy.deepcopy(psi)
+
+            #     for quantum_channel in self.observable_ops:
+            #         observable_op = quantum_channel.get_ops()
+
+            #         if self.cache_unitary:
+            #             self.unitary_cached_trajectories(observable_op, last_cached_node, error_tolerance)
+
+            #         if traj_idx[0].size > 0:
+            #             psi = last_cached_node.trajectories[traj_idx[0][0]]
+            #         else:
+            #             psi = self.apply_op(psi, observable_op, error_tolerance)
+            #             if self.calc_magnitude(psi) < 1e-25:
+            #                 psi = None
+
+            #     if traj_idx[0].size > 0:
+            #         self.expectation_cached_trajectories(last_cached_node, temp_trajectories)
+            #         psi = last_cached_node.trajectories[traj_idx[0][0]] 
+            #         print("psi after cached expectation:", psi)
+            #     elif psi != None:
+            #         psi = self.calc_inner_product(psi_temp, psi)
+            #         print("psi after expectation calculation:", psi)
+                
+
         if psi == None: return 0
         return psi
